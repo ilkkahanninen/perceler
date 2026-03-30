@@ -1,0 +1,8 @@
+tools/
+build/
+*.obj
+*.exe
+*.err
+*.map
+*.sym
+.DS_Store
