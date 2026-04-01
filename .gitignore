@@ -1,4 +1,5 @@
 tools/
+libs/
 build/
 *.obj
 *.exe
