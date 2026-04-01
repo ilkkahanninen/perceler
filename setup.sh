@@ -93,6 +93,31 @@ else
     echo "WARNING: dos32a.exe not found in $WATCOM_DIR/binw/"
 fi
 
+# --- Install libxmp-lite ---
+LIBXMP_DIR="$SCRIPT_DIR/libs/libxmp-lite"
+LIBXMP_VERSION="4.7.0"
+LIBXMP_URL="https://github.com/libxmp/libxmp/releases/download/libxmp-${LIBXMP_VERSION}/libxmp-lite-${LIBXMP_VERSION}.tar.gz"
+
+if [ -f "$LIBXMP_DIR/include/libxmp-lite/xmp.h" ]; then
+    echo "libxmp-lite already present in $LIBXMP_DIR"
+else
+    echo "Downloading libxmp-lite ${LIBXMP_VERSION}..."
+    mkdir -p "$SCRIPT_DIR/libs"
+    LIBXMP_ARCHIVE="$SCRIPT_DIR/libs/libxmp-lite.tar.gz"
+    curl -L --progress-bar -o "$LIBXMP_ARCHIVE" "$LIBXMP_URL"
+    echo "Extracting libxmp-lite..."
+    mkdir -p "$LIBXMP_DIR"
+    tar -xf "$LIBXMP_ARCHIVE" -C "$LIBXMP_DIR" --strip-components=1
+    rm -f "$LIBXMP_ARCHIVE"
+    echo "libxmp-lite installed."
+fi
+
+# Create assets directory for music files
+mkdir -p "$SCRIPT_DIR/assets"
+if [ ! -f "$SCRIPT_DIR/assets/music.xm" ]; then
+    echo "NOTE: Place your XM file at assets/music.xm before running make."
+fi
+
 # --- Install DOSBox-X ---
 if command -v dosbox-x &> /dev/null; then
     echo "DOSBox-X already installed: $(which dosbox-x)"

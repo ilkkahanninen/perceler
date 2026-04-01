@@ -10,6 +10,7 @@
 #include <math.h>
 #include "modex.h"
 #include "keyboard.h"
+#include "audio.h"
 
 /* Precomputed sine table (256 entries, values 0-255) */
 static unsigned char sintab[256];
@@ -49,6 +50,8 @@ int main(void)
     modex_init();
     set_plasma_palette();
     keyboard_init();
+    audio_init();
+    audio_load("music.xm");
 
     draw_page = MODEX_PAGE1;
 
@@ -78,11 +81,13 @@ int main(void)
            atomically at the start of retrace, so no tearing. */
         modex_setpage(draw_page);
         modex_vsync();
+        audio_update();
 
         draw_page = (draw_page == MODEX_PAGE0) ? MODEX_PAGE1 : MODEX_PAGE0;
         frame++;
     }
 
+    audio_shutdown();
     keyboard_shutdown();
     modex_exit();
 

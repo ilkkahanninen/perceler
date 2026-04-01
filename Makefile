@@ -24,7 +24,8 @@ export PATH := $(WATCOM)/$(HOSTBIN):$(PATH)
 # -mf   = flat memory model
 # -bt=dos = target DOS
 # -i=   = include paths
-CFLAGS := -3r -fpi87 -fp3 -s -ox -mf -bt=dos -i=$(WATCOM)/h
+LIBXMP_DIR := libs/libxmp-lite
+CFLAGS := -3r -fpi87 -fp3 -s -ox -mf -bt=dos -i=$(WATCOM)/h -i=$(LIBXMP_DIR)/include/libxmp-lite -i=$(LIBXMP_DIR)/src -DLIBXMP_CORE_PLAYER -DLIBXMP_NO_PROWIZARD
 
 # --- Project files ---
 SRCDIR  := src
@@ -34,10 +35,15 @@ TARGET  := $(BUILDDIR)/demo.exe
 SRCS    := $(wildcard $(SRCDIR)/*.c)
 OBJS    := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.obj,$(SRCS))
 
+LIBXMP_SRCS   := $(wildcard $(LIBXMP_DIR)/src/*.c)
+LIBXMP_LSRCS  := $(wildcard $(LIBXMP_DIR)/src/loaders/*.c)
+LIBXMP_OBJS   := $(patsubst $(LIBXMP_DIR)/src/%.c,$(BUILDDIR)/xmp_%.obj,$(LIBXMP_SRCS))
+LIBXMP_LOBJS  := $(patsubst $(LIBXMP_DIR)/src/loaders/%.c,$(BUILDDIR)/xmpl_%.obj,$(LIBXMP_LSRCS))
+
 # --- Rules ---
 .PHONY: all clean run
 
-all: $(TARGET)
+all: $(TARGET) $(BUILDDIR)/music.xm
 
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
@@ -45,11 +51,20 @@ $(BUILDDIR):
 $(BUILDDIR)/%.obj: $(SRCDIR)/%.c | $(BUILDDIR)
 	$(CC) $(CFLAGS) -fo=$@ $<
 
-$(TARGET): $(OBJS)
-	$(WLINK) name $@ system dos32a op stub=$(WATCOM)/binw/dos32a.exe $(patsubst %,file %,$(OBJS))
+$(BUILDDIR)/xmp_%.obj: $(LIBXMP_DIR)/src/%.c | $(BUILDDIR)
+	$(CC) $(CFLAGS) -fo=$@ $<
+
+$(BUILDDIR)/xmpl_%.obj: $(LIBXMP_DIR)/src/loaders/%.c | $(BUILDDIR)
+	$(CC) $(CFLAGS) -fo=$@ $<
+
+$(TARGET): $(OBJS) $(LIBXMP_OBJS) $(LIBXMP_LOBJS)
+	$(WLINK) name $@ system dos32a op stub=$(WATCOM)/binw/dos32a.exe $(patsubst %,file %,$(OBJS) $(LIBXMP_OBJS) $(LIBXMP_LOBJS))
+
+$(BUILDDIR)/music.xm: assets/music.xm | $(BUILDDIR)
+	cp assets/music.xm $(BUILDDIR)/music.xm
 
 clean:
 	rm -rf $(BUILDDIR)
 
-run: $(TARGET)
+run: $(TARGET) $(BUILDDIR)/music.xm
 	./run.sh
