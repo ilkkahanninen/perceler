@@ -43,7 +43,10 @@ LIBXMP_LOBJS  := $(patsubst $(LIBXMP_DIR)/src/loaders/%.c,$(BUILDDIR)/xmpl_%.obj
 # --- Rules ---
 .PHONY: all clean run
 
-all: $(TARGET) $(BUILDDIR)/music.xm
+ASSETS := $(wildcard assets/*.bmp) $(wildcard assets/*.xm)
+BUILD_ASSETS := $(patsubst assets/%,$(BUILDDIR)/%,$(ASSETS))
+
+all: $(TARGET) $(BUILD_ASSETS) assets/palette.bmp
 
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
@@ -60,8 +63,11 @@ $(BUILDDIR)/xmpl_%.obj: $(LIBXMP_DIR)/src/loaders/%.c | $(BUILDDIR)
 $(TARGET): $(OBJS) $(LIBXMP_OBJS) $(LIBXMP_LOBJS)
 	$(WLINK) name $@ system dos32a op stub=$(WATCOM)/binw/dos32a.exe $(patsubst %,file %,$(OBJS) $(LIBXMP_OBJS) $(LIBXMP_LOBJS))
 
-$(BUILDDIR)/music.xm: assets/music.xm | $(BUILDDIR)
-	cp assets/music.xm $(BUILDDIR)/music.xm
+assets/palette.bmp: tools/make_palette.py
+	python3 tools/make_palette.py
+
+$(BUILDDIR)/%: assets/% | $(BUILDDIR)
+	cp $< $@
 
 clean:
 	rm -rf $(BUILDDIR)

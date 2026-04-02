@@ -11,6 +11,7 @@
 #include "modex.h"
 #include "keyboard.h"
 #include "audio.h"
+#include "bitmap.h"
 
 /* Precomputed sine table (256 entries, values 0-255) */
 static unsigned char sintab[256];
@@ -45,13 +46,17 @@ int main(void)
     unsigned int draw_page;
     unsigned char frame = 0;
     int plane, x, y;
+    Bitmap *hello;
 
     init_sintab();
     modex_init();
-    set_plasma_palette();
+    // set_plasma_palette();
     keyboard_init();
     audio_init();
     audio_load("music.xm");
+
+    hello = bitmap_load("hello.bmp");
+    bitmap_apply_palette(hello);
 
     draw_page = MODEX_PAGE1;
 
@@ -69,16 +74,18 @@ int main(void)
             {
                 for (x = plane; x < MODEX_WIDTH; x += 4)
                 {
-                    unsigned char color;
-                    color = sintab[(x + frame) & 0xFF] + sintab[(y + frame) & 0xFF] + sintab[((x + y) / 2 + frame * 2) & 0xFF] + sintab[((x - y + 256) / 2 + frame * 3) & 0xFF];
-                    dst[y * 80 + (x >> 2)] = color;
+                    unsigned char col1, col2;
+                    col1 = (sintab[(x + frame) & 0xFF] + sintab[(y + frame) & 0xFF]) >> 4;
+                    col2 = (sintab[((x + y) / 2 + frame * 2) & 0xFF] + sintab[((x - y + 256) / 2 + frame * 3) & 0xFF]) & 0xF0;
+                    dst[y * 80 + (x >> 2)] = col1 | col2;
                 }
             }
         }
 
-        /* Set start address while the beam is still in the active area,
-           then wait for retrace — the VGA latches both registers
-           atomically at the start of retrace, so no tearing. */
+        if (hello)
+            bitmap_blit(hello, (MODEX_WIDTH - hello->width) / 2,
+                        (MODEX_HEIGHT - hello->height) / 2, draw_page);
+
         modex_setpage(draw_page);
         modex_vsync();
         audio_update();
@@ -87,6 +94,7 @@ int main(void)
         frame++;
     }
 
+    bitmap_free(hello);
     audio_shutdown();
     keyboard_shutdown();
     modex_exit();
