@@ -1,5 +1,8 @@
 /*
  * scene.c - Timeline-driven scene runner
+ *
+ * Supports jumping between scenes with left/right arrow keys.
+ * Music position is synchronized when jumping.
  */
 
 #include "scene.h"
@@ -13,19 +16,27 @@ void scene_run_timeline(const TimelineEntry *timeline)
     unsigned int draw_page = MODEX_PAGE1;
     unsigned char frame;
     unsigned long scene_start;
-    const TimelineEntry *entry;
+    int count, idx;
+
+    /* Count entries */
+    for (count = 0; timeline[count].scene != 0; count++)
+        ;
+    if (count == 0) return;
 
     /* Initialize all scenes */
-    for (entry = timeline; entry->scene != 0; entry++)
-        entry->scene->init();
+    for (idx = 0; idx < count; idx++)
+        timeline[idx].scene->init();
 
-    /* Run timeline */
-    for (entry = timeline; entry->scene != 0 && !key_pressed(KEY_ESC); entry++) {
+    /* Compute cumulative music offset for each scene and seek to start */
+    idx = 0;
+    audio_seek(0);
+
+    while (!key_pressed(KEY_ESC)) {
         frame = 0;
         scene_start = timer_ms();
 
         while (!key_pressed(KEY_ESC)) {
-            entry->scene->render(draw_page, frame);
+            timeline[idx].scene->render(draw_page, frame);
 
             modex_setpage(draw_page);
             modex_vsync();
@@ -35,14 +46,41 @@ void scene_run_timeline(const TimelineEntry *timeline)
                       ? MODEX_PAGE1 : MODEX_PAGE0;
             frame++;
 
-            if (entry->duration_ms > 0 &&
-                (timer_ms() - scene_start) >= entry->duration_ms) {
+            /* Jump to previous scene */
+            if (key_pressed(KEY_LEFT) && idx > 0) {
+                idx--;
+                goto seek;
+            }
+
+            /* Jump to next scene */
+            if (key_pressed(KEY_RIGHT) && idx < count - 1) {
+                idx++;
+                goto seek;
+            }
+
+            /* Auto-advance when duration expires */
+            if (timeline[idx].duration_ms > 0 &&
+                (timer_ms() - scene_start) >= timeline[idx].duration_ms) {
+                idx++;
+                if (idx >= count)
+                    goto done;
                 break;
             }
         }
+        continue;
+
+    seek:
+        {
+            unsigned long music_ms = 0;
+            int i;
+            for (i = 0; i < idx; i++)
+                music_ms += timeline[i].duration_ms;
+            audio_seek(music_ms);
+        }
     }
 
+done:
     /* Shutdown all scenes */
-    for (entry = timeline; entry->scene != 0; entry++)
-        entry->scene->shutdown();
+    for (idx = 0; idx < count; idx++)
+        timeline[idx].scene->shutdown();
 }

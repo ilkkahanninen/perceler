@@ -22,6 +22,12 @@ int  audio_load(const char *path);
 void audio_update(void);
 
 /*
+ * Seek to a position in the currently playing module.
+ * ms: milliseconds from the start of the module.
+ */
+void audio_seek(unsigned long ms);
+
+/*
  * Stop playback and release all audio resources.
  */
 void audio_shutdown(void);

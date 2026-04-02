@@ -65,6 +65,12 @@ int audio_load(const char *path)
     return 0;
 }
 
+void audio_seek(unsigned long ms)
+{
+    if (g_loaded)
+        xmp_seek_time(g_ctx, (int)ms);
+}
+
 void audio_update(void)
 {
     sb16_update();
