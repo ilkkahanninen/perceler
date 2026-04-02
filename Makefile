@@ -32,8 +32,15 @@ SRCDIR  := src
 BUILDDIR := build
 TARGET  := $(BUILDDIR)/demo.exe
 
-SRCS    := $(wildcard $(SRCDIR)/*.c)
-OBJS    := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.obj,$(SRCS))
+MAIN_SRCS    := $(wildcard $(SRCDIR)/*.c)
+ENGINE_SRCS  := $(wildcard $(SRCDIR)/engine/*.c)
+SCENE_SRCS   := $(wildcard $(SRCDIR)/scenes/*.c)
+SRCS         := $(MAIN_SRCS) $(ENGINE_SRCS) $(SCENE_SRCS)
+
+MAIN_OBJS    := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.obj,$(MAIN_SRCS))
+ENGINE_OBJS  := $(patsubst $(SRCDIR)/engine/%.c,$(BUILDDIR)/eng_%.obj,$(ENGINE_SRCS))
+SCENE_OBJS   := $(patsubst $(SRCDIR)/scenes/%.c,$(BUILDDIR)/scn_%.obj,$(SCENE_SRCS))
+OBJS         := $(MAIN_OBJS) $(ENGINE_OBJS) $(SCENE_OBJS)
 
 LIBXMP_SRCS   := $(wildcard $(LIBXMP_DIR)/src/*.c)
 LIBXMP_LSRCS  := $(wildcard $(LIBXMP_DIR)/src/loaders/*.c)
@@ -52,6 +59,12 @@ $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
 
 $(BUILDDIR)/%.obj: $(SRCDIR)/%.c | $(BUILDDIR)
+	$(CC) $(CFLAGS) -fo=$@ $<
+
+$(BUILDDIR)/eng_%.obj: $(SRCDIR)/engine/%.c | $(BUILDDIR)
+	$(CC) $(CFLAGS) -fo=$@ $<
+
+$(BUILDDIR)/scn_%.obj: $(SRCDIR)/scenes/%.c | $(BUILDDIR)
 	$(CC) $(CFLAGS) -fo=$@ $<
 
 $(BUILDDIR)/xmp_%.obj: $(LIBXMP_DIR)/src/%.c | $(BUILDDIR)
