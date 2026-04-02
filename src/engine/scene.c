@@ -14,8 +14,7 @@
 void scene_run_timeline(const TimelineEntry *timeline)
 {
     unsigned int draw_page = MODEX_PAGE1;
-    unsigned char frame;
-    unsigned long scene_start;
+    unsigned long scene_start, elapsed;
     int count, idx;
 
     /* Count entries */
@@ -32,11 +31,12 @@ void scene_run_timeline(const TimelineEntry *timeline)
     audio_seek(0);
 
     while (!key_pressed(KEY_ESC)) {
-        frame = 0;
         scene_start = timer_ms();
 
         while (!key_pressed(KEY_ESC)) {
-            timeline[idx].scene->render(draw_page, frame);
+            elapsed = timer_ms() - scene_start;
+            timeline[idx].scene->render(draw_page,
+                (unsigned char)(elapsed * 60 / 1000));
 
             modex_setpage(draw_page);
             modex_vsync();
@@ -44,7 +44,6 @@ void scene_run_timeline(const TimelineEntry *timeline)
 
             draw_page = (draw_page == MODEX_PAGE0)
                       ? MODEX_PAGE1 : MODEX_PAGE0;
-            frame++;
 
             /* Jump to previous scene */
             if (key_pressed(KEY_LEFT) && idx > 0) {
@@ -60,7 +59,7 @@ void scene_run_timeline(const TimelineEntry *timeline)
 
             /* Auto-advance when duration expires */
             if (timeline[idx].duration_ms > 0 &&
-                (timer_ms() - scene_start) >= timeline[idx].duration_ms) {
+                elapsed >= timeline[idx].duration_ms) {
                 idx++;
                 if (idx >= count)
                     goto done;
