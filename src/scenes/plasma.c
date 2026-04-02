@@ -6,6 +6,7 @@
 
 #include <math.h>
 #include <stdlib.h>
+#include "plasma.h"
 #include "../engine/modex.h"
 #include "../engine/bitmap.h"
 
@@ -23,20 +24,20 @@ static void init_sintab(void)
     }
 }
 
-void plasma_init(void)
+static void plasma_init(void)
 {
     init_sintab();
     hello = bitmap_load("hello.bmp");
     bitmap_apply_palette(hello);
 }
 
-void plasma_shutdown(void)
+static void plasma_shutdown(void)
 {
     bitmap_free(hello);
     hello = NULL;
 }
 
-void plasma_render(unsigned int draw_page, unsigned char frame)
+static void plasma_render(unsigned int draw_page, unsigned char frame)
 {
     int plane, x, y;
 
@@ -63,3 +64,9 @@ void plasma_render(unsigned int draw_page, unsigned char frame)
         bitmap_blit(hello, (MODEX_WIDTH - hello->width) / 2,
                     (MODEX_HEIGHT - hello->height) / 2, draw_page);
 }
+
+const Scene plasma_scene = {
+    plasma_init,
+    plasma_shutdown,
+    plasma_render
+};

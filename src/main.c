@@ -5,35 +5,27 @@
 #include "engine/modex.h"
 #include "engine/keyboard.h"
 #include "engine/audio.h"
+#include "engine/timer.h"
+#include "engine/scene.h"
 #include "scenes/plasma.h"
+
+static const TimelineEntry demo_timeline[] = {
+    { &plasma_scene, 10000 },
+    { 0, 0 }
+};
 
 int main(void)
 {
-    unsigned int draw_page;
-    unsigned char frame = 0;
-
     modex_init();
     keyboard_init();
+    timer_init();
     audio_init();
     audio_load("music.xm");
-    plasma_init();
 
-    draw_page = MODEX_PAGE1;
+    scene_run_timeline(demo_timeline);
 
-    while (!key_pressed(KEY_ESC))
-    {
-        plasma_render(draw_page, frame);
-
-        modex_setpage(draw_page);
-        modex_vsync();
-        audio_update();
-
-        draw_page = (draw_page == MODEX_PAGE0) ? MODEX_PAGE1 : MODEX_PAGE0;
-        frame++;
-    }
-
-    plasma_shutdown();
     audio_shutdown();
+    timer_shutdown();
     keyboard_shutdown();
     modex_exit();
 
