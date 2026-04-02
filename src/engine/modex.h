@@ -9,6 +9,9 @@
 #define MODEX_PAGE0 0
 #define MODEX_PAGE1 MODEX_PAGE_SIZE
 
+/* VGA memory as a near pointer (flat model, DOS/32A maps low 1MB linearly) */
+#define MODEX_VGAMEM ((volatile unsigned char *)0xA0000)
+
 void modex_init(void);
 void modex_exit(void);
 void modex_vsync(void);

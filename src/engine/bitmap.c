@@ -129,7 +129,7 @@ void bitmap_blit(const Bitmap *bmp, int dx, int dy, unsigned int page)
      * We do 4 passes (one per plane) so modex_setplane() is called only 4
      * times total.  Color index 0 is skipped (transparent).
      */
-    volatile unsigned char *vga = (volatile unsigned char *)0xA0000;
+    volatile unsigned char *vga = MODEX_VGAMEM;
     int plane, sx, sy;
 
     /* Clip source rect to both bitmap and screen bounds */

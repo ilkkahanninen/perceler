@@ -21,8 +21,7 @@
 #define VGA_DAC_WRITE    0x3C8
 #define VGA_DAC_DATA     0x3C9
 
-/* Near pointer to VGA memory (flat model, DOS/32A maps low 1MB linearly) */
-static volatile unsigned char *const VGA_MEM = (volatile unsigned char *)0xA0000;
+#define VGA_MEM MODEX_VGAMEM
 
 void modex_init(void)
 {
@@ -40,7 +39,7 @@ void modex_init(void)
 
     /* Enable all 4 planes for writing, then clear all VGA memory */
     outpw(VGA_SC_INDEX, 0x0F02);
-    memset((void *)0xA0000, 0, 0x10000);
+    memset((void *)VGA_MEM, 0, 0x10000);
 
     /* Underline Location (CRTC 0x14) = 0x00: disable doubleword addressing */
     outpw(VGA_CRTC_INDEX, 0x0014);
@@ -106,7 +105,7 @@ void modex_clear(unsigned char color, unsigned int page)
     /* Enable all 4 planes */
     outpw(VGA_SC_INDEX, 0x0F02);
 
-    memset((void *)(0xA0000 + page), color, MODEX_PAGE_SIZE);
+    memset((void *)(VGA_MEM + page), color, MODEX_PAGE_SIZE);
 }
 
 void modex_setpalette(unsigned char index, unsigned char r, unsigned char g, unsigned char b)

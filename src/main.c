@@ -32,6 +32,7 @@ int main(void)
         frame++;
     }
 
+    plasma_shutdown();
     audio_shutdown();
     keyboard_shutdown();
     modex_exit();

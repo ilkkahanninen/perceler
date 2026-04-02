@@ -5,11 +5,9 @@
  */
 
 #include <math.h>
+#include <stdlib.h>
 #include "../engine/modex.h"
 #include "../engine/bitmap.h"
-
-/* VGA memory as a near pointer (flat model) */
-#define VGAMEM ((volatile unsigned char *)0xA0000)
 
 /* Precomputed sine table (256 entries, values 0-255) */
 static unsigned char sintab[256];
@@ -32,6 +30,12 @@ void plasma_init(void)
     bitmap_apply_palette(hello);
 }
 
+void plasma_shutdown(void)
+{
+    bitmap_free(hello);
+    hello = NULL;
+}
+
 void plasma_render(unsigned int draw_page, unsigned char frame)
 {
     int plane, x, y;
@@ -41,7 +45,7 @@ void plasma_render(unsigned int draw_page, unsigned char frame)
         volatile unsigned char *dst;
 
         modex_setplane(plane);
-        dst = VGAMEM + draw_page;
+        dst = MODEX_VGAMEM + draw_page;
 
         for (y = 0; y < MODEX_HEIGHT; y++)
         {

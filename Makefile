@@ -85,5 +85,5 @@ $(BUILDDIR)/%: assets/% | $(BUILDDIR)
 clean:
 	rm -rf $(BUILDDIR)
 
-run: $(TARGET) $(BUILDDIR)/music.xm
-	./run.sh
+run: all
+	dosbox-x -conf dosbox-x.conf
