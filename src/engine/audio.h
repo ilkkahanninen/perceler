@@ -10,11 +10,11 @@
 int  audio_init(void);
 
 /*
- * Load and immediately start playing an XM (or MOD/S3M/IT) file.
- * path: DOS path to the module file (e.g. "music.xm")
+ * Load and immediately start playing an XM module from the packed data file.
+ * offset/length: position and size within demo.dat.
  * Returns 0 on success, negative on error.
  */
-int  audio_load(const char *path);
+int  audio_load(unsigned long offset, unsigned long length);
 
 /*
  * Must be called once per main-loop iteration to fill the audio buffer.

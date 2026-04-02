@@ -16,8 +16,8 @@ typedef struct {
     unsigned char palette[256][3]; /* [index][0=R, 1=G, 2=B], values 0-63 */
 } Bitmap;
 
-/* Load an 8-bit uncompressed BMP. Returns NULL on error. */
-Bitmap *bitmap_load(const char *path);
+/* Load an 8-bit uncompressed BMP from the packed data file. Returns 0 on error. */
+Bitmap *bitmap_load(unsigned long offset, unsigned long length);
 
 /* Apply the bitmap's palette to the VGA DAC (all 256 entries). */
 void    bitmap_apply_palette(const Bitmap *bmp);

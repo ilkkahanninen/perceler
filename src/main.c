@@ -9,6 +9,7 @@
 #include "engine/scene.h"
 #include "scenes/plasma.h"
 #include "scenes/tunnel.h"
+#include "assets.h"
 
 static const TimelineEntry demo_timeline[] = {
     { &plasma_scene,  10000 },
@@ -22,7 +23,7 @@ int main(void)
     keyboard_init();
     timer_init();
     audio_init();
-    audio_load("music.xm");
+    audio_load(ASSET_MUSIC_XM_OFFSET, ASSET_MUSIC_XM_LENGTH);
 
     scene_run_timeline(demo_timeline);
 

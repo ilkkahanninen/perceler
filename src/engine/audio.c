@@ -6,10 +6,12 @@
  * to fill the inactive half of the DMA buffer with the next decoded PCM chunk.
  */
 
+#include <stdlib.h>
 #include <string.h>
 #include "xmp.h"
 #include "audio.h"
 #include "sb16.h"
+#include "data.h"
 
 static xmp_context g_ctx    = NULL;
 static int         g_loaded = 0;
@@ -44,8 +46,10 @@ int audio_init(void)
     return 0;
 }
 
-int audio_load(const char *path)
+int audio_load(unsigned long offset, unsigned long length)
 {
+    void *buf;
+
     if (!g_ctx) return -1;
 
     if (g_loaded) {
@@ -54,7 +58,14 @@ int audio_load(const char *path)
         g_loaded = 0;
     }
 
-    if (xmp_load_module(g_ctx, path) != 0) return -1;
+    buf = data_read(offset, length);
+    if (!buf) return -1;
+
+    if (xmp_load_module_from_memory(g_ctx, buf, (long)length) != 0) {
+        free(buf);
+        return -1;
+    }
+    free(buf);
 
     if (xmp_start_player(g_ctx, SB16_RATE, 0) != 0) {
         xmp_release_module(g_ctx);

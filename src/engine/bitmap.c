@@ -11,105 +11,101 @@
  * by 2 to convert to the 6-bit range (0-63) expected by the VGA DAC.
  */
 
-#include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "bitmap.h"
 #include "modex.h"
+#include "data.h"
 
 /* ------------------------------------------------------------------ */
-/* Little-endian helpers                                                */
+/* Little-endian helpers (memory buffer)                                */
 /* ------------------------------------------------------------------ */
-static unsigned short read_u16(FILE *f)
+static unsigned short mem_u16(const unsigned char *p)
 {
-    unsigned char b[2];
-    fread(b, 1, 2, f);
-    return (unsigned short)(b[0] | ((unsigned short)b[1] << 8));
+    return (unsigned short)(p[0] | ((unsigned short)p[1] << 8));
 }
 
-static unsigned long read_u32(FILE *f)
+static unsigned long mem_u32(const unsigned char *p)
 {
-    unsigned char b[4];
-    fread(b, 1, 4, f);
-    return (unsigned long)b[0]
-         | ((unsigned long)b[1] <<  8)
-         | ((unsigned long)b[2] << 16)
-         | ((unsigned long)b[3] << 24);
+    return (unsigned long)p[0]
+         | ((unsigned long)p[1] <<  8)
+         | ((unsigned long)p[2] << 16)
+         | ((unsigned long)p[3] << 24);
 }
 
 /* ------------------------------------------------------------------ */
-/* Public API                                                           */
+/* Core parser: works on a memory buffer                               */
 /* ------------------------------------------------------------------ */
-Bitmap *bitmap_load(const char *path)
+static Bitmap *bitmap_parse(const unsigned char *buf, unsigned long buf_len)
 {
-    FILE          *f;
     Bitmap        *bmp;
     unsigned long  pixel_offset;
     int            width, height, stride, y, i;
     unsigned short bit_count;
     unsigned long  compression;
-    unsigned char  ctab[256][4]; /* BMP color table: B, G, R, reserved */
+    const unsigned char *ctab;
 
-    f = fopen(path, "rb");
-    if (!f) return NULL;
+    if (buf_len < 54) return 0;
+    if (buf[0] != 'B' || buf[1] != 'M') return 0;
 
-    /* --- File header (14 bytes) --- */
-    if (fgetc(f) != 'B' || fgetc(f) != 'M') goto fail;
-    read_u32(f);             /* file size   (ignored) */
-    read_u32(f);             /* reserved             */
-    pixel_offset = read_u32(f);
+    /* File header (14 bytes) */
+    pixel_offset = mem_u32(buf + 10);
 
-    /* --- Info header (40 bytes) --- */
-    read_u32(f);             /* header size (ignored) */
-    width       = (int)read_u32(f);
-    height      = (int)read_u32(f);
-    read_u16(f);             /* color planes          */
-    bit_count   = read_u16(f);
-    compression = read_u32(f);
+    /* Info header (starts at offset 14) */
+    width       = (int)mem_u32(buf + 18);
+    height      = (int)mem_u32(buf + 22);
+    bit_count   = mem_u16(buf + 28);
+    compression = mem_u32(buf + 30);
 
-    if (bit_count != 8 || compression != 0) goto fail;
-    if (width <= 0 || height <= 0)          goto fail;
+    if (bit_count != 8 || compression != 0) return 0;
+    if (width <= 0 || height <= 0) return 0;
 
-    read_u32(f); /* image size      */
-    read_u32(f); /* X pixels/meter  */
-    read_u32(f); /* Y pixels/meter  */
-    read_u32(f); /* colors used     */
-    read_u32(f); /* colors important */
+    /* Color table starts at offset 54 (256 * 4 bytes = 1024 bytes) */
+    if (buf_len < 54 + 1024) return 0;
+    ctab = buf + 54;
 
-    /* --- Color table (256 * 4 bytes = 1024 bytes) --- */
-    fread(ctab, 4, 256, f);
+    if (buf_len < pixel_offset) return 0;
 
-    /* --- Allocate --- */
     bmp = (Bitmap *)malloc(sizeof(Bitmap));
-    if (!bmp) goto fail;
+    if (!bmp) return 0;
 
     bmp->width  = width;
     bmp->height = height;
     bmp->pixels = (unsigned char *)malloc((unsigned)(width * height));
-    if (!bmp->pixels) { free(bmp); goto fail; }
+    if (!bmp->pixels) { free(bmp); return 0; }
 
     /* Convert BGRA color table to 6-bit VGA RGB */
     for (i = 0; i < 256; i++) {
-        bmp->palette[i][0] = ctab[i][2] >> 2; /* R */
-        bmp->palette[i][1] = ctab[i][1] >> 2; /* G */
-        bmp->palette[i][2] = ctab[i][0] >> 2; /* B */
+        bmp->palette[i][0] = ctab[i * 4 + 2] >> 2; /* R */
+        bmp->palette[i][1] = ctab[i * 4 + 1] >> 2; /* G */
+        bmp->palette[i][2] = ctab[i * 4 + 0] >> 2; /* B */
     }
 
-    /* --- Pixel data: bottom-to-top, stride rounded up to 4 bytes --- */
+    /* Pixel data: bottom-to-top, stride rounded up to 4 bytes */
     stride = (width + 3) & ~3;
-    fseek(f, (long)pixel_offset, SEEK_SET);
-
     for (y = height - 1; y >= 0; y--) {
-        fread(bmp->pixels + y * width, 1, (unsigned)width, f);
-        if (stride > width)
-            fseek(f, (long)(stride - width), SEEK_CUR);
+        unsigned long src_row = pixel_offset + (unsigned long)(height - 1 - y) * stride;
+        if (src_row + width > buf_len) { free(bmp->pixels); free(bmp); return 0; }
+        memcpy(bmp->pixels + y * width, buf + src_row, (unsigned)width);
     }
 
-    fclose(f);
     return bmp;
+}
 
-fail:
-    fclose(f);
-    return NULL;
+/* ------------------------------------------------------------------ */
+/* Public API                                                           */
+/* ------------------------------------------------------------------ */
+Bitmap *bitmap_load(unsigned long offset, unsigned long length)
+{
+    unsigned char *buf;
+    Bitmap *bmp;
+
+    buf = (unsigned char *)data_read(offset, length);
+    if (!buf) return 0;
+
+    bmp = bitmap_parse(buf, length);
+    free(buf);
+    return bmp;
 }
 
 void bitmap_apply_palette(const Bitmap *bmp)

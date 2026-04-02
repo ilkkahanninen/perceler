@@ -16,20 +16,12 @@ export WATCOM
 export PATH := $(WATCOM)/$(HOSTBIN):$(PATH)
 
 # --- Compiler flags ---
-# -3r   = 386, register calling convention
-# -fpi87= inline 80x87 FPU instructions
-# -fp3  = 387 FPU code generation
-# -s    = remove stack overflow checks
-# -ox   = maximum optimization
-# -mf   = flat memory model
-# -bt=dos = target DOS
-# -i=   = include paths
 LIBXMP_DIR := libs/libxmp-lite
-CFLAGS := -3r -fpi87 -fp3 -s -ox -mf -bt=dos -i=$(WATCOM)/h -i=$(LIBXMP_DIR)/include/libxmp-lite -i=$(LIBXMP_DIR)/src -DLIBXMP_CORE_PLAYER -DLIBXMP_NO_PROWIZARD
-
 # --- Project files ---
 SRCDIR  := src
 BUILDDIR := build
+
+CFLAGS := -3r -fpi87 -fp3 -s -ox -mf -bt=dos -i=$(WATCOM)/h -i=$(LIBXMP_DIR)/include/libxmp-lite -i=$(LIBXMP_DIR)/src -i=$(SRCDIR) -DLIBXMP_CORE_PLAYER -DLIBXMP_NO_PROWIZARD
 TARGET  := $(BUILDDIR)/demo.exe
 
 MAIN_SRCS    := $(wildcard $(SRCDIR)/*.c)
@@ -47,16 +39,27 @@ LIBXMP_LSRCS  := $(wildcard $(LIBXMP_DIR)/src/loaders/*.c)
 LIBXMP_OBJS   := $(patsubst $(LIBXMP_DIR)/src/%.c,$(BUILDDIR)/xmp_%.obj,$(LIBXMP_SRCS))
 LIBXMP_LOBJS  := $(patsubst $(LIBXMP_DIR)/src/loaders/%.c,$(BUILDDIR)/xmpl_%.obj,$(LIBXMP_LSRCS))
 
+# --- Asset packing ---
+ASSET_FILES := assets/hello.bmp assets/music.xm
+ASSET_DAT   := $(BUILDDIR)/demo.dat
+ASSET_HDR   := $(SRCDIR)/assets.h
+
 # --- Rules ---
-.PHONY: all clean run
+.PHONY: all clean run assets
 
-ASSETS := $(wildcard assets/*.bmp) $(wildcard assets/*.xm)
-BUILD_ASSETS := $(patsubst assets/%,$(BUILDDIR)/%,$(ASSETS))
-
-all: $(TARGET) $(BUILD_ASSETS) assets/palette.bmp
+all: $(TARGET) $(ASSET_DAT)
 
 $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
+
+# Pack assets and generate header (must run before compiling sources)
+$(ASSET_DAT) $(ASSET_HDR): $(ASSET_FILES) tools/pack_assets.py | $(BUILDDIR)
+	python3 tools/pack_assets.py $(BUILDDIR) $(SRCDIR) $(ASSET_FILES)
+
+assets: $(ASSET_DAT)
+
+# All object files depend on the generated asset header
+$(OBJS): $(ASSET_HDR)
 
 $(BUILDDIR)/%.obj: $(SRCDIR)/%.c | $(BUILDDIR)
 	$(CC) $(CFLAGS) -fo=$@ $<
@@ -76,14 +79,8 @@ $(BUILDDIR)/xmpl_%.obj: $(LIBXMP_DIR)/src/loaders/%.c | $(BUILDDIR)
 $(TARGET): $(OBJS) $(LIBXMP_OBJS) $(LIBXMP_LOBJS)
 	$(WLINK) name $@ system dos32a op stub=$(WATCOM)/binw/dos32a.exe $(patsubst %,file %,$(OBJS) $(LIBXMP_OBJS) $(LIBXMP_LOBJS))
 
-assets/palette.bmp: tools/make_palette.py
-	python3 tools/make_palette.py
-
-$(BUILDDIR)/%: assets/% | $(BUILDDIR)
-	cp $< $@
-
 clean:
-	rm -rf $(BUILDDIR)
+	rm -rf $(BUILDDIR) $(ASSET_HDR)
 
 run: all
 	dosbox-x -conf dosbox-x.conf

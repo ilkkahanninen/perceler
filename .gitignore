@@ -6,4 +6,5 @@ build/
 *.err
 *.map
 *.sym
+src/assets.h
 .DS_Store
