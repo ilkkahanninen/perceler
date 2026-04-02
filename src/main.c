@@ -8,9 +8,11 @@
 #include "engine/timer.h"
 #include "engine/scene.h"
 #include "scenes/plasma.h"
+#include "scenes/tunnel.h"
 
 static const TimelineEntry demo_timeline[] = {
-    { &plasma_scene, 10000 },
+    { &plasma_scene,  10000 },
+    { &tunnel_scene,  10000 },
     { 0, 0 }
 };
 
