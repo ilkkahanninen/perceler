@@ -159,11 +159,12 @@ extern const Scene myeffect_scene;
 #include "myeffect.h"
 #include "../engine/modex.h"
 
-static void myeffect_init(void) { /* allocate resources */ }
+static void myeffect_setup(void) { /* allocate resources */ }
+static void myeffect_init(void) { /* set palette, one-time per scene entry */ }
 static void myeffect_shutdown(void) { /* free resources */ }
 static void myeffect_render(unsigned int draw_page, unsigned char frame) { /* draw */ }
 
-const Scene myeffect_scene = { myeffect_init, myeffect_shutdown, myeffect_render };
+const Scene myeffect_scene = { myeffect_setup, myeffect_init, myeffect_shutdown, myeffect_render };
 ```
 
 2. Add it to the timeline in `src/main.c`:

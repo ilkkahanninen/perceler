@@ -71,10 +71,15 @@ static void set_tunnel_palette(void)
     }
 }
 
-static void tunnel_init(void)
+static void tunnel_setup(void)
 {
     generate_texture();
     generate_tables();
+}
+
+static void tunnel_init(void)
+{
+    set_tunnel_palette();
 }
 
 static void tunnel_shutdown(void)
@@ -90,9 +95,6 @@ static void tunnel_render(unsigned int draw_page, unsigned char frame)
     int plane, x, y;
     unsigned char shift_u = frame * 2;
     unsigned char shift_v = frame;
-
-    if (frame == 0)
-        set_tunnel_palette();
 
     for (plane = 0; plane < 4; plane++) {
         volatile unsigned char *dst;
@@ -112,6 +114,7 @@ static void tunnel_render(unsigned int draw_page, unsigned char frame)
 }
 
 const Scene tunnel_scene = {
+    tunnel_setup,
     tunnel_init,
     tunnel_shutdown,
     tunnel_render

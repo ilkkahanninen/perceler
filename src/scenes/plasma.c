@@ -13,9 +13,14 @@
 
 static Bitmap *hello;
 
-static void plasma_init(void)
+static void plasma_setup(void)
 {
     hello = bitmap_load(ASSET_HELLO_BMP);
+}
+
+static void plasma_init(void)
+{
+    palette_apply(&hello->palette);
 }
 
 static void plasma_shutdown(void)
@@ -29,9 +34,6 @@ static void plasma_render(unsigned int draw_page, unsigned char frame)
     int plane, x, y;
     unsigned char frame2 = frame * 2;
     unsigned char frame3 = frame * 3;
-
-    if (frame == 0)
-        palette_apply(&hello->palette);
 
     for (plane = 0; plane < 4; plane++)
     {
@@ -66,6 +68,7 @@ static void plasma_render(unsigned int draw_page, unsigned char frame)
 }
 
 const Scene plasma_scene = {
+    plasma_setup,
     plasma_init,
     plasma_shutdown,
     plasma_render};
