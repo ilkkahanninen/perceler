@@ -76,9 +76,9 @@ static Bitmap *bitmap_parse(const unsigned char *buf, unsigned long buf_len)
 
     /* Convert BGRA color table to 6-bit VGA RGB */
     for (i = 0; i < 256; i++) {
-        bmp->palette[i][0] = ctab[i * 4 + 2] >> 2; /* R */
-        bmp->palette[i][1] = ctab[i * 4 + 1] >> 2; /* G */
-        bmp->palette[i][2] = ctab[i * 4 + 0] >> 2; /* B */
+        bmp->palette.entries[i][0] = ctab[i * 4 + 2] >> 2; /* R */
+        bmp->palette.entries[i][1] = ctab[i * 4 + 1] >> 2; /* G */
+        bmp->palette.entries[i][2] = ctab[i * 4 + 0] >> 2; /* B */
     }
 
     /* Pixel data: bottom-to-top, stride rounded up to 4 bytes */
@@ -106,16 +106,6 @@ Bitmap *bitmap_load(Asset asset)
     bmp = bitmap_parse(buf, asset.length);
     free(buf);
     return bmp;
-}
-
-void bitmap_apply_palette(const Bitmap *bmp)
-{
-    int i;
-    for (i = 0; i < 256; i++)
-        modex_setpalette((unsigned char)i,
-                         bmp->palette[i][0],
-                         bmp->palette[i][1],
-                         bmp->palette[i][2]);
 }
 
 void bitmap_blit(const Bitmap *bmp, int dx, int dy, unsigned int page)

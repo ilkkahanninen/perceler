@@ -42,7 +42,7 @@ static void plasma_render(unsigned int draw_page, unsigned char frame)
     int plane, x, y;
 
     if (frame == 0)
-        bitmap_apply_palette(hello);
+        palette_apply(&hello->palette);
 
     for (plane = 0; plane < 4; plane++)
     {

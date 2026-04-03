@@ -124,7 +124,7 @@ static void my_render(unsigned int draw_page, unsigned char frame)
 {
     /* Apply the bitmap's palette to the VGA DAC (do once, e.g. on first frame) */
     if (frame == 0)
-        bitmap_apply_palette(logo);
+        palette_apply(&logo->palette);
 
     /* Blit to screen centered; color index 0 is transparent */
     bitmap_blit(logo, (MODEX_WIDTH - logo->width) / 2,
@@ -137,7 +137,7 @@ Key functions:
 | Function | Description |
 | --- | --- |
 | `bitmap_load(asset)` | Load an 8-bit BMP from `demo.dat`. Returns `NULL` on error. |
-| `bitmap_apply_palette(bmp)` | Set all 256 VGA DAC entries from the bitmap's palette. |
+| `palette_apply(&bmp->palette)` | Set all 256 VGA DAC entries from the bitmap's palette. |
 | `bitmap_blit(bmp, x, y, page)` | Draw bitmap at (x, y) on the given page. Index 0 is transparent. Clips automatically. |
 | `bitmap_free(bmp)` | Free a loaded bitmap. |
 
