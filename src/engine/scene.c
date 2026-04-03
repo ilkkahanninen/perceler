@@ -11,32 +11,37 @@
 #include "keyboard.h"
 #include "audio.h"
 
+static unsigned long music_offset(const TimelineEntry *timeline, int idx)
+{
+    unsigned long ms = 0;
+    int i;
+    for (i = 0; i < idx; i++)
+        ms += timeline[i].duration_ms;
+    return ms;
+}
+
 void scene_run_timeline(const TimelineEntry *timeline)
 {
     unsigned int draw_page = MODEX_PAGE1;
     unsigned long scene_start, elapsed;
-    int count, idx, first_frame;
+    int count, idx, need_init;
 
-    /* Count entries */
     for (count = 0; timeline[count].scene != 0; count++)
         ;
     if (count == 0) return;
 
-    /* Setup all scenes */
     for (idx = 0; idx < count; idx++)
         timeline[idx].scene->setup();
 
     idx = 0;
-    first_frame = 1;
-    audio_seek(0);
+    need_init = 1;
     scene_start = timer_ms();
+    audio_seek(0);
 
     while (!key_pressed(KEY_ESC)) {
-        int jumped = 0;
-
-        if (first_frame) {
+        if (need_init) {
             timeline[idx].scene->init();
-            first_frame = 0;
+            need_init = 0;
         }
 
         elapsed = timer_ms() - scene_start;
@@ -50,40 +55,26 @@ void scene_run_timeline(const TimelineEntry *timeline)
         draw_page = (draw_page == MODEX_PAGE0)
                   ? MODEX_PAGE1 : MODEX_PAGE0;
 
-        /* Jump to previous scene */
-        if (key_pressed(KEY_LEFT) && idx > 0) {
+        /* Jump to previous/next scene */
+        if (key_pressed(KEY_LEFT) && idx > 0)
             idx--;
-            jumped = 1;
-        }
-
-        /* Jump to next scene */
-        if (!jumped && key_pressed(KEY_RIGHT) && idx < count - 1) {
+        else if (key_pressed(KEY_RIGHT) && idx < count - 1)
             idx++;
-            jumped = 1;
-        }
-
-        if (jumped) {
-            unsigned long music_ms = 0;
-            int i;
-            for (i = 0; i < idx; i++)
-                music_ms += timeline[i].duration_ms;
-            audio_seek(music_ms);
-            first_frame = 1;
-            scene_start = timer_ms();
+        else if (timeline[idx].duration_ms > 0 &&
+                 elapsed >= timeline[idx].duration_ms) {
+            /* Auto-advance */
+            if (++idx >= count)
+                break;
+        } else {
             continue;
         }
 
-        /* Auto-advance when duration expires */
-        if (timeline[idx].duration_ms > 0 &&
-            elapsed >= timeline[idx].duration_ms) {
-            idx++;
-            if (idx >= count)
-                break;
-            first_frame = 1;
-            scene_start = timer_ms();
-        }
+        /* Scene changed — reset timing */
+        need_init = 1;
+        scene_start = timer_ms();
+        audio_seek(music_offset(timeline, idx));
     }
-    /* Shutdown all scenes */
+
     for (idx = 0; idx < count; idx++)
         timeline[idx].scene->shutdown();
 }
