@@ -6,75 +6,74 @@
  */
 
 #include "scene.h"
-#include "timer.h"
-#include "modex.h"
-#include "keyboard.h"
 #include "audio.h"
+#include "keyboard.h"
+#include "modex.h"
+#include "timer.h"
 
-static unsigned long music_offset(const TimelineEntry *timeline, int idx)
-{
-    unsigned long ms = 0;
-    int i;
-    for (i = 0; i < idx; i++)
-        ms += timeline[i].duration_ms;
-    return ms;
+static unsigned long music_offset(const TimelineEntry *timeline, int idx) {
+  unsigned long ms = 0;
+  int i;
+  for (i = 0; i < idx; i++)
+    ms += timeline[i].duration_ms;
+  return ms;
 }
 
-void scene_run_timeline(const TimelineEntry *timeline)
-{
-    unsigned int draw_page = MODEX_PAGE1;
-    unsigned long scene_start, elapsed;
-    int count, idx, need_init;
+void scene_run_timeline(const TimelineEntry *timeline) {
+  unsigned int draw_page = MODEX_PAGE1;
+  unsigned long scene_start, elapsed;
+  int number_of_scenes, current_scene, need_init;
 
-    for (count = 0; timeline[count].scene != 0; count++)
-        ;
-    if (count == 0) return;
+  for (number_of_scenes = 0; timeline[number_of_scenes].scene != 0;
+       number_of_scenes++)
+    ;
+  if (number_of_scenes == 0)
+    return;
 
-    for (idx = 0; idx < count; idx++)
-        timeline[idx].scene->setup();
+  for (current_scene = 0; current_scene < number_of_scenes; current_scene++)
+    timeline[current_scene].scene->setup();
 
-    idx = 0;
-    need_init = 1;
-    scene_start = timer_ms();
-    audio_seek(0);
+  current_scene = 0;
+  need_init = 1;
+  scene_start = timer_ms();
+  audio_seek(0);
 
-    while (!key_pressed(KEY_ESC)) {
-        if (need_init) {
-            timeline[idx].scene->init();
-            need_init = 0;
-        }
-
-        elapsed = timer_ms() - scene_start;
-        timeline[idx].scene->render(draw_page,
-            (unsigned char)(elapsed * 60 / 1000));
-
-        modex_setpage(draw_page);
-        modex_vsync();
-        audio_update();
-
-        draw_page = (draw_page == MODEX_PAGE0)
-                  ? MODEX_PAGE1 : MODEX_PAGE0;
-
-        /* Jump to previous/next scene */
-        if (key_pressed(KEY_LEFT) && idx > 0)
-            idx--;
-        else if (key_pressed(KEY_RIGHT) && idx < count - 1)
-            idx++;
-        else if (timeline[idx].duration_ms > 0 &&
-                 elapsed >= timeline[idx].duration_ms) {
-            /* Auto-advance */
-            if (++idx >= count)
-                break;
-        } else {
-            continue;
-        }
-
-        /* Scene changed — reset timing */
-        need_init = 1;
-        scene_start = timer_ms();
-        audio_seek(music_offset(timeline, idx));
+  while (!key_pressed(KEY_ESC)) {
+    if (need_init) {
+      timeline[current_scene].scene->init();
+      need_init = 0;
     }
 
-    for (idx = 0; idx < count; idx++)
-        timeline[idx].scene->shutdown();
+    elapsed = timer_ms() - scene_start;
+    timeline[current_scene].scene->render(draw_page,
+                                          (unsigned char)(elapsed * 60 / 1000));
+
+    modex_setpage(draw_page);
+    modex_vsync();
+    audio_update();
+
+    draw_page = (draw_page == MODEX_PAGE0) ? MODEX_PAGE1 : MODEX_PAGE0;
+
+    /* Jump to previous/next scene */
+    if (key_pressed(KEY_LEFT) && current_scene > 0)
+      current_scene--;
+    else if (key_pressed(KEY_RIGHT) && current_scene < number_of_scenes - 1)
+      current_scene++;
+    else if (timeline[current_scene].duration_ms > 0 &&
+             elapsed >= timeline[current_scene].duration_ms) {
+      /* Auto-advance */
+      if (++current_scene >= number_of_scenes)
+        break;
+    } else {
+      continue;
+    }
+
+    /* Scene changed — reset timing */
+    need_init = 1;
+    scene_start = timer_ms();
+    audio_seek(music_offset(timeline, current_scene));
+  }
+
+  for (current_scene = 0; current_scene < number_of_scenes; current_scene++)
+    timeline[current_scene].scene->shutdown();
 }
