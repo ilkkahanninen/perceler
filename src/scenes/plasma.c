@@ -27,26 +27,36 @@ static void plasma_shutdown(void)
 static void plasma_render(unsigned int draw_page, unsigned char frame)
 {
     int plane, x, y;
+    unsigned char frame2 = frame * 2;
+    unsigned char frame3 = frame * 3;
 
     if (frame == 0)
         palette_apply(&hello->palette);
 
     for (plane = 0; plane < 4; plane++)
     {
-        volatile unsigned char *dst;
+        volatile unsigned char *row;
 
         modex_setplane(plane);
-        dst = MODEX_VGAMEM + draw_page;
+        row = MODEX_VGAMEM + draw_page + (plane >> 2);
 
         for (y = 0; y < MODEX_HEIGHT; y++)
         {
+            volatile unsigned char *dst = row;
+            unsigned char sin_y = sintab[(y + frame) & 0xFF];
+            unsigned char idx_add = (unsigned char)((plane + y) / 2 + frame2);
+            unsigned char idx_sub = (unsigned char)((plane - y + 256) / 2 + frame3);
+
             for (x = plane; x < MODEX_WIDTH; x += 4)
             {
-                unsigned char col1, col2;
-                col1 = (sintab[(x + frame) & 0xFF] + sintab[(y + frame) & 0xFF]) >> 4;
-                col2 = (sintab[((x + y) / 2 + frame * 2) & 0xFF] + sintab[((x - y + 256) / 2 + frame * 3) & 0xFF]) & 0xF0;
-                dst[y * 80 + (x >> 2)] = col1 | col2;
+                unsigned char col1 = (sintab[(x + frame) & 0xFF] + sin_y) >> 4;
+                unsigned char col2 = (sintab[idx_add] + sintab[idx_sub]) & 0xF0;
+                *dst++ = col1 | col2;
+                idx_add += 2;
+                idx_sub += 2;
             }
+
+            row += 80;
         }
     }
 
