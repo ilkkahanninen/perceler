@@ -21,7 +21,7 @@ LIBXMP_DIR := libs/libxmp-lite
 SRCDIR  := src
 BUILDDIR := build
 
-CFLAGS := -4 -fpi87 -fp3 -s -otexan -zp4 -oa -mf -bt=dos -i=$(WATCOM)/h -i=$(LIBXMP_DIR)/include/libxmp-lite -i=$(LIBXMP_DIR)/src -i=$(SRCDIR) -i=$(SRCDIR)/engine -DLIBXMP_CORE_PLAYER -DLIBXMP_NO_PROWIZARD
+CFLAGS := -5 -fpi87 -fp3 -s -otexan -zp4 -oa -mf -bt=dos -i=$(WATCOM)/h -i=$(LIBXMP_DIR)/include/libxmp-lite -i=$(LIBXMP_DIR)/src -i=$(SRCDIR) -i=$(SRCDIR)/engine -DLIBXMP_CORE_PLAYER -DLIBXMP_NO_PROWIZARD
 TARGET  := $(BUILDDIR)/demo.exe
 
 MAIN_SRCS    := $(wildcard $(SRCDIR)/*.c)
