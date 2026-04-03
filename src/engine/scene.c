@@ -9,8 +9,8 @@
 
 #include "audio.h"
 #include "keyboard.h"
-#include "vga.h"
 #include "timer.h"
+#include "vga.h"
 
 #include <stdlib.h>
 
@@ -43,7 +43,7 @@ void run_timeline(const TimelineEntry *timeline, int loop,
                   TimelineStats *stats) {
   unsigned long scene_start, elapsed, run_start;
   unsigned long frames = 0;
-  int number_of_scenes, current_scene, need_init;
+  int number_of_scenes, current_scene, need_init, need_seek;
 
   for (number_of_scenes = 0; timeline[number_of_scenes].scene != 0;
        number_of_scenes++)
@@ -56,6 +56,7 @@ void run_timeline(const TimelineEntry *timeline, int loop,
 
   current_scene = 0;
   need_init = 1;
+  need_seek = 0;
   scene_start = timer_ms();
   audio_seek(timeline[0].music_offset_ms);
   run_start = timer_ms();
@@ -66,21 +67,23 @@ void run_timeline(const TimelineEntry *timeline, int loop,
       need_init = 0;
     }
 
-    elapsed = timer_ms() - scene_start;
-    timeline[current_scene].scene->render(
-        (unsigned char)(elapsed * 60 / 1000));
-
-    vga_vsync();
     audio_update();
+    vga_vsync();
+
+    elapsed = timer_ms() - scene_start;
+    timeline[current_scene].scene->render((unsigned char)(elapsed * 60 / 1000));
+
     frames++;
 
     /* Jump to previous/next scene */
-    if (key_pressed(KEY_LEFT) && current_scene > 0)
+    if (key_pressed(KEY_LEFT) && current_scene > 0) {
       current_scene--;
-    else if (key_pressed(KEY_RIGHT) && current_scene < number_of_scenes - 1)
+      need_seek = 1;
+    } else if (key_pressed(KEY_RIGHT) && current_scene < number_of_scenes - 1) {
       current_scene++;
-    else if (timeline[current_scene].duration_ms > 0 &&
-             elapsed >= timeline[current_scene].duration_ms) {
+      need_seek = 1;
+    } else if (timeline[current_scene].duration_ms > 0 &&
+               elapsed >= timeline[current_scene].duration_ms) {
       /* Auto-advance */
       if (++current_scene >= number_of_scenes) {
         if (loop)
@@ -95,7 +98,10 @@ void run_timeline(const TimelineEntry *timeline, int loop,
     /* Scene changed — reset timing */
     need_init = 1;
     scene_start = timer_ms();
-    audio_seek(timeline[current_scene].music_offset_ms);
+    if (need_seek) {
+      audio_seek(timeline[current_scene].music_offset_ms);
+      need_seek = 0;
+    }
   }
 
   if (stats) {
