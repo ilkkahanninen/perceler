@@ -78,6 +78,8 @@ src/
   scenes/             Demo effects
     plasma.c/h          Sine-based plasma effect
     tunnel.c/h          Textured tunnel flythrough
+  utils/              Shared utilities for scenes
+    dither.h            Ordered dithering threshold maps (8x8)
 assets/               Source asset files (BMP, XM)
 tools/
   pack_assets.py        Packs assets into demo.dat + generates assets.h
