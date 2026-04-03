@@ -126,26 +126,23 @@ Bitmaps must be 8-bit uncompressed BMP files (256-color indexed). The engine loa
 
 static Bitmap *logo;
 
-static void my_init(void)
-{
-    logo = bitmap_load(ASSET_LOGO_BMP);
+static void my_setup(void) {
+  logo = bitmap_load(ASSET_LOGO_BMP);
 }
 
-static void my_shutdown(void)
-{
-    bitmap_free(logo);
-    logo = NULL;
+static void my_init(void) {
+  palette_apply(&logo->palette);
 }
 
-static void my_render(unsigned int draw_page, unsigned char frame)
-{
-    /* Apply the bitmap's palette to the VGA DAC (do once, e.g. on first frame) */
-    if (frame == 0)
-        palette_apply(&logo->palette);
+static void my_shutdown(void) {
+  bitmap_free(logo);
+  logo = NULL;
+}
 
-    /* Blit to screen centered; color index 0 is transparent */
-    bitmap_blit(logo, (MODEX_WIDTH - logo->width) / 2,
-                (MODEX_HEIGHT - logo->height) / 2, draw_page);
+static void my_render(unsigned int draw_page, unsigned char frame) {
+  /* Color index 0 is transparent; clips automatically */
+  bitmap_blit(logo, (MODEX_WIDTH - logo->width) / 2,
+              (MODEX_HEIGHT - logo->height) / 2, draw_page);
 }
 ```
 
