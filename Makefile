@@ -40,7 +40,7 @@ LIBXMP_OBJS   := $(patsubst $(LIBXMP_DIR)/src/%.c,$(BUILDDIR)/xmp_%.obj,$(LIBXMP
 LIBXMP_LOBJS  := $(patsubst $(LIBXMP_DIR)/src/loaders/%.c,$(BUILDDIR)/xmpl_%.obj,$(LIBXMP_LSRCS))
 
 # --- Asset packing ---
-ASSET_FILES := assets/hello.bmp assets/music.xm
+ASSET_FILES := $(wildcard assets/*)
 ASSET_DAT   := $(BUILDDIR)/demo.dat
 ASSET_HDR   := $(SRCDIR)/assets.h
 

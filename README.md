@@ -84,6 +84,61 @@ tools/
   make_palette.py       Generates palette preview BMP
 ```
 
+## Adding new assets
+
+1. Place the file in the `assets/` directory (e.g. `assets/logo.bmp`).
+
+2. Run `make assets` (or just `make`). All files in `assets/` are packed automatically into `build/demo.dat`, and `src/assets.h` is regenerated with an `Asset` constant for each file:
+
+```c
+// Generated automatically in src/assets.h
+static const Asset ASSET_LOGO_BMP = { 77878UL, 12345UL };
+```
+
+The constant name is the filename uppercased with dots and hyphens replaced by underscores, prefixed with `ASSET_`.
+
+## Using bitmaps
+
+Bitmaps must be 8-bit uncompressed BMP files (256-color indexed). The engine loads the embedded palette and converts it to VGA DAC range (0-63) automatically.
+
+```c
+#include "../engine/bitmap.h"
+#include "assets.h"
+
+static Bitmap *logo;
+
+static void my_init(void)
+{
+    logo = bitmap_load(ASSET_LOGO_BMP);
+}
+
+static void my_shutdown(void)
+{
+    bitmap_free(logo);
+    logo = NULL;
+}
+
+static void my_render(unsigned int draw_page, unsigned char frame)
+{
+    /* Apply the bitmap's palette to the VGA DAC (do once, e.g. on first frame) */
+    if (frame == 0)
+        bitmap_apply_palette(logo);
+
+    /* Blit to screen centered; color index 0 is transparent */
+    bitmap_blit(logo, (MODEX_WIDTH - logo->width) / 2,
+                (MODEX_HEIGHT - logo->height) / 2, draw_page);
+}
+```
+
+Key functions:
+
+| Function | Description |
+| --- | --- |
+| `bitmap_load(asset)` | Load an 8-bit BMP from `demo.dat`. Returns `NULL` on error. |
+| `bitmap_apply_palette(bmp)` | Set all 256 VGA DAC entries from the bitmap's palette. |
+| `bitmap_blit(bmp, x, y, page)` | Draw bitmap at (x, y) on the given page. Index 0 is transparent. Clips automatically. |
+| `bitmap_free(bmp)` | Free a loaded bitmap. |
+
 ## Adding a new scene
 
 1. Create `src/scenes/myeffect.c` and `src/scenes/myeffect.h`:

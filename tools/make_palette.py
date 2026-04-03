@@ -79,7 +79,7 @@ def write_indexed_bmp(filename, pal):
 
 
 if __name__ == '__main__':
-    output = sys.argv[1] if len(sys.argv) > 1 else 'assets/palette.bmp'
+    output = sys.argv[1] if len(sys.argv) > 1 else 'build/palette.bmp'
     pal = palette()
     assert len(pal) == 256, f"Palette must have exactly 256 entries, got {len(pal)}"
     write_indexed_bmp(output, pal)
