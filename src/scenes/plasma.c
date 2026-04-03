@@ -4,30 +4,17 @@
  * Renders plane-by-plane (4 passes) to minimize VGA port I/O.
  */
 
-#include <math.h>
 #include <stdlib.h>
 #include "plasma.h"
 #include "../engine/modex.h"
 #include "../engine/bitmap.h"
+#include "../utils/sintab.h"
 #include "assets.h"
-
-/* Precomputed sine table (256 entries, values 0-255) */
-static unsigned char sintab[256];
 
 static Bitmap *hello;
 
-static void init_sintab(void)
-{
-    int i;
-    for (i = 0; i < 256; i++)
-    {
-        sintab[i] = (unsigned char)(128.0 + 127.0 * sin(i * 3.14159265 / 128.0));
-    }
-}
-
 static void plasma_init(void)
 {
-    init_sintab();
     hello = bitmap_load(ASSET_HELLO_BMP);
 }
 
