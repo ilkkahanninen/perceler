@@ -9,7 +9,7 @@
 #include "../demo.h"
 #include "audio.h"
 #include "keyboard.h"
-#include "modex.h"
+#include "vga.h"
 #include "scene.h"
 #include "timer.h"
 
@@ -18,7 +18,7 @@ int main(int argc, char *argv[]) {
   int have_selection;
   int num_scenes;
 
-  modex_init();
+  vga_init();
   keyboard_init();
   timer_init();
   audio_init();
@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
   audio_shutdown();
   timer_shutdown();
   keyboard_shutdown();
-  modex_exit();
+  vga_exit();
 
   return 0;
 }

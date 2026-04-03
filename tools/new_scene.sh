@@ -35,7 +35,7 @@ EOF
 cat > "$C_FILE" << EOF
 #include "${NAME}.h"
 
-#include <modex.h>
+#include <vga.h>
 
 static void ${NAME}_setup(void) {}
 
@@ -43,19 +43,13 @@ static void ${NAME}_init(void) {}
 
 static void ${NAME}_shutdown(void) {}
 
-static void ${NAME}_render(unsigned int draw_page, unsigned char frame) {
-  int plane, x, y;
+static void ${NAME}_render(unsigned char frame) {
+  volatile unsigned char *vga = VGA_MEM;
+  int x, y;
 
-  for (plane = 0; plane < 4; plane++) {
-    volatile unsigned char *dst;
-
-    modex_setplane(plane);
-    dst = MODEX_VGAMEM + draw_page;
-
-    for (y = 0; y < MODEX_HEIGHT; y++) {
-      for (x = plane; x < MODEX_WIDTH; x += 4) {
-        dst[y * 80 + (x >> 2)] = 0;
-      }
+  for (y = 0; y < VGA_HEIGHT; y++) {
+    for (x = 0; x < VGA_WIDTH; x++) {
+      *vga++ = 0;
     }
   }
 }

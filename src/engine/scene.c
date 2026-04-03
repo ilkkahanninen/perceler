@@ -9,7 +9,7 @@
 
 #include "audio.h"
 #include "keyboard.h"
-#include "modex.h"
+#include "vga.h"
 #include "timer.h"
 
 #include <stdlib.h>
@@ -40,7 +40,6 @@ int timeline_select(int argc, char *argv[], const TimelineEntry *source,
 }
 
 void run_timeline(const TimelineEntry *timeline, int loop) {
-  unsigned int draw_page = MODEX_PAGE1;
   unsigned long scene_start, elapsed;
   int number_of_scenes, current_scene, need_init;
 
@@ -65,14 +64,11 @@ void run_timeline(const TimelineEntry *timeline, int loop) {
     }
 
     elapsed = timer_ms() - scene_start;
-    timeline[current_scene].scene->render(draw_page,
-                                          (unsigned char)(elapsed * 60 / 1000));
+    timeline[current_scene].scene->render(
+        (unsigned char)(elapsed * 60 / 1000));
 
-    modex_setpage(draw_page);
-    modex_vsync();
+    vga_vsync();
     audio_update();
-
-    draw_page = (draw_page == MODEX_PAGE0) ? MODEX_PAGE1 : MODEX_PAGE0;
 
     /* Jump to previous/next scene */
     if (key_pressed(KEY_LEFT) && current_scene > 0)

@@ -14,7 +14,7 @@
 #include "bitmap.h"
 
 #include <data.h>
-#include <modex.h>
+#include <vga.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -119,14 +119,9 @@ Bitmap *bitmap_load(Asset asset) {
   return bmp;
 }
 
-void bitmap_blit(const Bitmap *bmp, int dx, int dy, unsigned int page) {
-  /*
-   * Mode-X planar layout: plane = x & 3, VGA byte = page + y*80 + (x>>2).
-   * We do 4 passes (one per plane) so modex_setplane() is called only 4
-   * times total.  Color index 0 is skipped (transparent).
-   */
-  volatile unsigned char *vga = MODEX_VGAMEM;
-  int plane, sx, sy;
+void bitmap_blit(const Bitmap *bmp, int dx, int dy) {
+  volatile unsigned char *vga = VGA_MEM;
+  int sx, sy;
 
   /* Clip source rect to both bitmap and screen bounds */
   int sx0 = (dx < 0) ? -dx : 0;
@@ -134,31 +129,52 @@ void bitmap_blit(const Bitmap *bmp, int dx, int dy, unsigned int page) {
   int sx1 = bmp->width;
   int sy1 = bmp->height;
 
-  if (dx + sx1 > MODEX_WIDTH)
-    sx1 = MODEX_WIDTH - dx;
-  if (dy + sy1 > MODEX_HEIGHT)
-    sy1 = MODEX_HEIGHT - dy;
+  if (dx + sx1 > VGA_WIDTH)
+    sx1 = VGA_WIDTH - dx;
+  if (dy + sy1 > VGA_HEIGHT)
+    sy1 = VGA_HEIGHT - dy;
 
   if (sx0 >= sx1 || sy0 >= sy1)
     return; /* fully off-screen */
 
-  for (plane = 0; plane < 4; plane++) {
-    modex_setplane(plane);
+  for (sy = sy0; sy < sy1; sy++) {
+    const unsigned char *src = bmp->pixels + sy * bmp->width + sx0;
+    volatile unsigned char *dst = vga + (dy + sy) * VGA_WIDTH + (dx + sx0);
 
-    /* First source column that belongs to this plane */
-    sx = sx0 + (((plane - (dx + sx0)) & 3 + 4) & 3);
-    /* ^ bring sx0 up to the first x where (dx+sx) & 3 == plane */
+    for (sx = sx0; sx < sx1; sx++) {
+      if (*src != 0)
+        *dst = *src;
+      src++;
+      dst++;
+    }
+  }
+}
 
-    for (; sx < sx1; sx += 4) {
-      const unsigned char *src = bmp->pixels + sy0 * bmp->width + sx;
-      int screen_x = dx + sx;
-      volatile unsigned char *dst =
-          vga + page + (dy + sy0) * 80 + (screen_x >> 2);
+void bitmap_blit_to_buffer(const Bitmap *bmp, unsigned char *buf, int dst_w,
+                           int dst_h, int dx, int dy) {
+  int sx, sy;
+  int sx0 = (dx < 0) ? -dx : 0;
+  int sy0 = (dy < 0) ? -dy : 0;
+  int sx1 = bmp->width;
+  int sy1 = bmp->height;
 
-      for (sy = sy0; sy < sy1; sy++, src += bmp->width, dst += 80) {
-        if (*src != 0)
-          *dst = *src;
-      }
+  if (dx + sx1 > dst_w)
+    sx1 = dst_w - dx;
+  if (dy + sy1 > dst_h)
+    sy1 = dst_h - dy;
+
+  if (sx0 >= sx1 || sy0 >= sy1)
+    return;
+
+  for (sy = sy0; sy < sy1; sy++) {
+    const unsigned char *src = bmp->pixels + sy * bmp->width + sx0;
+    unsigned char *dst = buf + (dy + sy) * dst_w + (dx + sx0);
+
+    for (sx = sx0; sx < sx1; sx++) {
+      if (*src != 0)
+        *dst = *src;
+      src++;
+      dst++;
     }
   }
 }

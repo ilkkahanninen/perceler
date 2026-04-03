@@ -9,12 +9,12 @@
 #include "tunnel.h"
 
 #include <math.h>
-#include <modex.h>
+#include <vga.h>
 #include <stdlib.h>
 
 #define TEX_SIZE 256
-#define CX (MODEX_WIDTH / 2)
-#define CY (MODEX_HEIGHT / 2)
+#define CX (VGA_WIDTH / 2)
+#define CY (VGA_HEIGHT / 2)
 
 #define PI 3.14159265
 
@@ -37,16 +37,16 @@ static void generate_texture(void) {
 
 static void generate_tables(void) {
   int x, y;
-  angle_tab = (unsigned char *)malloc(MODEX_WIDTH * MODEX_HEIGHT);
-  dist_tab = (unsigned char *)malloc(MODEX_WIDTH * MODEX_HEIGHT);
+  angle_tab = (unsigned char *)malloc(VGA_WIDTH * VGA_HEIGHT);
+  dist_tab = (unsigned char *)malloc(VGA_WIDTH * VGA_HEIGHT);
 
-  for (y = 0; y < MODEX_HEIGHT; y++) {
-    for (x = 0; x < MODEX_WIDTH; x++) {
+  for (y = 0; y < VGA_HEIGHT; y++) {
+    for (x = 0; x < VGA_WIDTH; x++) {
       double dx = (double)(x - CX);
       double dy = (double)(y - CY);
       double dist = sqrt(dx * dx + dy * dy);
       double ang = atan2(dy, dx);
-      int idx = y * MODEX_WIDTH + x;
+      int idx = y * VGA_WIDTH + x;
 
       /* Map angle to 0-255 */
       angle_tab[idx] = (unsigned char)(ang * 128.0 / PI + 128.0);
@@ -66,7 +66,7 @@ static void set_tunnel_palette(void) {
     r = (unsigned char)(32.0 * (1.0 + sin(i * PI / 128.0)));
     g = (unsigned char)(20.0 * (1.0 + sin(i * PI / 64.0 + 2.0)));
     b = (unsigned char)(32.0 * (1.0 + sin(i * PI / 96.0 + 4.0)));
-    modex_setpalette((unsigned char)i, r, g, b);
+    vga_setpalette((unsigned char)i, r, g, b);
   }
 }
 
@@ -75,9 +75,7 @@ static void tunnel_setup(void) {
   generate_tables();
 }
 
-static void tunnel_init(void) {
-  set_tunnel_palette();
-}
+static void tunnel_init(void) { set_tunnel_palette(); }
 
 static void tunnel_shutdown(void) {
   free(angle_tab);
@@ -86,24 +84,18 @@ static void tunnel_shutdown(void) {
   dist_tab = 0;
 }
 
-static void tunnel_render(unsigned int draw_page, unsigned char frame) {
-  int plane, x, y;
+static void tunnel_render(unsigned char frame) {
+  int x, y;
   unsigned char shift_u = frame * 2;
   unsigned char shift_v = frame;
+  volatile unsigned char *vga = VGA_MEM;
 
-  for (plane = 0; plane < 4; plane++) {
-    volatile unsigned char *dst;
-
-    modex_setplane(plane);
-    dst = MODEX_VGAMEM + draw_page;
-
-    for (y = 0; y < MODEX_HEIGHT; y++) {
-      for (x = plane; x < MODEX_WIDTH; x += 4) {
-        int idx = y * MODEX_WIDTH + x;
-        unsigned char u = angle_tab[idx] + shift_u;
-        unsigned char v = dist_tab[idx] + shift_v;
-        dst[y * 80 + (x >> 2)] = texture[v * TEX_SIZE + u];
-      }
+  for (y = 0; y < VGA_HEIGHT; y++) {
+    for (x = 0; x < VGA_WIDTH; x++) {
+      int idx = y * VGA_WIDTH + x;
+      unsigned char u = angle_tab[idx] + shift_u;
+      unsigned char v = dist_tab[idx] + shift_v;
+      *vga++ = texture[v * TEX_SIZE + u];
     }
   }
 }

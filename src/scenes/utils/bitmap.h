@@ -23,11 +23,19 @@ typedef struct {
 Bitmap *bitmap_load(Asset asset);
 
 /*
- * Blit bitmap to VGA page at screen position (dx, dy).
+ * Blit bitmap to VGA at screen position (dx, dy).
  * Color index 0 is treated as transparent (not written).
  * Clips to screen bounds automatically.
  */
-void bitmap_blit(const Bitmap *bmp, int dx, int dy, unsigned int page);
+void bitmap_blit(const Bitmap *bmp, int dx, int dy);
+
+/*
+ * Blit bitmap onto a linear buffer at position (dx, dy).
+ * Color index 0 is treated as transparent (not written).
+ * Clips to dst_w x dst_h bounds.
+ */
+void bitmap_blit_to_buffer(const Bitmap *bmp, unsigned char *dst, int dst_w,
+                           int dst_h, int dx, int dy);
 
 /* Free a bitmap returned by bitmap_load(). */
 void bitmap_free(Bitmap *bmp);
