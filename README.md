@@ -93,6 +93,8 @@ src/
     tunnel.c/h          Textured tunnel flythrough
   utils/              Shared utilities for scenes
     dither.h            Ordered dithering threshold maps (8x8)
+    palette.c/h         Palette utilities (apply, lightness levels)
+    sintab.c/h          Precomputed sine table (256 entries, values 0-255)
     xmtiming.h          XM_MS() macro: BPM/speed/rows to milliseconds
 assets/               Source asset files (BMP, XM)
 tools/
