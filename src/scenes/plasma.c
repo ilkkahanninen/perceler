@@ -29,7 +29,6 @@ static void plasma_init(void)
 {
     init_sintab();
     hello = bitmap_load(ASSET_HELLO_BMP_OFFSET, ASSET_HELLO_BMP_LENGTH);
-    bitmap_apply_palette(hello);
 }
 
 static void plasma_shutdown(void)
@@ -41,6 +40,9 @@ static void plasma_shutdown(void)
 static void plasma_render(unsigned int draw_page, unsigned char frame)
 {
     int plane, x, y;
+
+    if (frame == 0)
+        bitmap_apply_palette(hello);
 
     for (plane = 0; plane < 4; plane++)
     {
@@ -69,5 +71,4 @@ static void plasma_render(unsigned int draw_page, unsigned char frame)
 const Scene plasma_scene = {
     plasma_init,
     plasma_shutdown,
-    plasma_render
-};
+    plasma_render};
