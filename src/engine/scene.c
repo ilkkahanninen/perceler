@@ -43,7 +43,8 @@ void run_timeline(const TimelineEntry *timeline, int loop,
                   TimelineStats *stats) {
   unsigned long scene_start, elapsed, run_start;
   unsigned long frames = 0;
-  int number_of_scenes, current_scene, need_init, need_seek;
+  int number_of_scenes, current_scene_idx, need_init, need_seek;
+  const TimelineEntry *current_scene;
 
   for (number_of_scenes = 0; timeline[number_of_scenes].scene != 0;
        number_of_scenes++)
@@ -51,43 +52,47 @@ void run_timeline(const TimelineEntry *timeline, int loop,
   if (number_of_scenes == 0)
     return;
 
-  for (current_scene = 0; current_scene < number_of_scenes; current_scene++)
-    timeline[current_scene].scene->setup();
+  for (current_scene_idx = 0; current_scene_idx < number_of_scenes;
+       current_scene_idx++)
+    timeline[current_scene_idx].scene->setup();
 
-  current_scene = 0;
+  current_scene_idx = 0;
   need_init = 1;
   need_seek = 0;
+  current_scene = &timeline[0];
   scene_start = timer_ms();
-  audio_seek(timeline[0].music_offset_ms);
+  audio_seek(current_scene->music_offset_ms);
   run_start = timer_ms();
 
   while (!key_pressed(KEY_ESC)) {
     if (need_init) {
-      timeline[current_scene].scene->init();
+      current_scene->scene->init();
       need_init = 0;
     }
 
     audio_update();
-    vga_vsync();
 
     elapsed = timer_ms() - scene_start;
-    timeline[current_scene].scene->render((unsigned char)(elapsed * 60 / 1000));
+    current_scene->scene->render(
+        (unsigned char)((elapsed * 61) >> 10)); // ~ elapsed * 60 / 1000
 
+    vga_vsync();
     frames++;
 
     /* Jump to previous/next scene */
-    if (key_pressed(KEY_LEFT) && current_scene > 0) {
-      current_scene--;
+    if (key_pressed(KEY_LEFT) && current_scene_idx > 0) {
+      current_scene_idx--;
       need_seek = 1;
-    } else if (key_pressed(KEY_RIGHT) && current_scene < number_of_scenes - 1) {
-      current_scene++;
+    } else if (key_pressed(KEY_RIGHT) &&
+               current_scene_idx < number_of_scenes - 1) {
+      current_scene_idx++;
       need_seek = 1;
-    } else if (timeline[current_scene].duration_ms > 0 &&
-               elapsed >= timeline[current_scene].duration_ms) {
+    } else if (current_scene->duration_ms > 0 &&
+               elapsed >= current_scene->duration_ms) {
       /* Auto-advance */
-      if (++current_scene >= number_of_scenes) {
+      if (++current_scene_idx >= number_of_scenes) {
         if (loop)
-          current_scene = 0;
+          current_scene_idx = 0;
         else
           break;
       }
@@ -98,8 +103,9 @@ void run_timeline(const TimelineEntry *timeline, int loop,
     /* Scene changed — reset timing */
     need_init = 1;
     scene_start = timer_ms();
+    current_scene = &timeline[current_scene_idx];
     if (need_seek) {
-      audio_seek(timeline[current_scene].music_offset_ms);
+      audio_seek(current_scene->music_offset_ms);
       need_seek = 0;
     }
   }
@@ -109,6 +115,7 @@ void run_timeline(const TimelineEntry *timeline, int loop,
     stats->total_ms = timer_ms() - run_start;
   }
 
-  for (current_scene = 0; current_scene < number_of_scenes; current_scene++)
-    timeline[current_scene].scene->shutdown();
+  for (current_scene_idx = 0; current_scene_idx < number_of_scenes;
+       current_scene_idx++)
+    timeline[current_scene_idx].scene->shutdown();
 }

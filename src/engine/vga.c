@@ -9,7 +9,6 @@
 
 #include <conio.h>
 #include <i86.h>
-#include <string.h>
 
 /* VGA ports */
 #define VGA_INPUT_STATUS 0x3DA
@@ -37,14 +36,6 @@ void vga_vsync(void) {
 
 void vga_putpixel(int x, int y, unsigned char color) {
   VGA_MEM[(unsigned int)y * VGA_WIDTH + (unsigned int)x] = color;
-}
-
-void vga_clear(unsigned char color) {
-  memset((void *)VGA_MEM, color, VGA_SIZE);
-}
-
-void vga_blit(const unsigned char *buf) {
-  memcpy((void *)VGA_MEM, buf, VGA_SIZE);
 }
 
 void vga_setpalette(unsigned char index, unsigned char r, unsigned char g,

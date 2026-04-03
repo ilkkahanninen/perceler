@@ -83,10 +83,6 @@ void audio_seek(unsigned long ms) {
     xmp_seek_time(g_ctx, (int)ms);
 }
 
-void audio_update(void) {
-  sb16_update();
-}
-
 void audio_shutdown(void) {
   sb16_shutdown();
 

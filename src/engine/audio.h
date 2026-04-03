@@ -4,6 +4,7 @@
 #define AUDIO_H
 
 #include "../assets.h"
+#include "sb16.h"
 
 /*
  * Initialize SB16 audio output.
@@ -21,7 +22,7 @@ int audio_load(Asset asset);
 /*
  * Must be called once per main-loop iteration to fill the audio buffer.
  */
-void audio_update(void);
+#define audio_update() sb16_update()
 
 /*
  * Seek to a position in the currently playing module.
