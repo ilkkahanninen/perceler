@@ -36,7 +36,6 @@ static void plasma_shutdown(void) {
 static void plasma_render(unsigned char frame) {
   int x, y;
   unsigned char *dst = backbuffer;
-  const unsigned char *st = sintab;
 
   for (y = 0; y < VGA_HEIGHT; y++) {
     for (x = 0; x < VGA_WIDTH; x++) {
