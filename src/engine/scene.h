@@ -17,7 +17,8 @@ typedef struct {
  * Run through a timeline of scenes.
  * Returns when the timeline ends or ESC is pressed.
  * Terminate the array with { NULL, 0 }.
+ * If loop is non-zero, restart from the beginning after the last scene.
  */
-void scene_run_timeline(const TimelineEntry *timeline);
+void run_timeline(const TimelineEntry *timeline, int loop);
 
 #endif

@@ -44,6 +44,18 @@ Or equivalently:
 
 This builds the project and launches it in DOSBox-X.
 
+To run only specific scenes by their 0-based index (loops automatically):
+
+```sh
+./run.sh 0 1
+```
+
+or:
+
+```sh
+make run DEMO_ARGS="0 1"
+```
+
 ## Controls
 
 | Key         | Action                 |

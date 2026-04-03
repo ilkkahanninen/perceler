@@ -20,7 +20,7 @@ static unsigned long music_offset(const TimelineEntry *timeline, int idx) {
   return ms;
 }
 
-void run_timeline(const TimelineEntry *timeline) {
+void run_timeline(const TimelineEntry *timeline, int loop) {
   unsigned int draw_page = MODEX_PAGE1;
   unsigned long scene_start, elapsed;
   int number_of_scenes, current_scene, need_init;
@@ -63,8 +63,12 @@ void run_timeline(const TimelineEntry *timeline) {
     else if (timeline[current_scene].duration_ms > 0 &&
              elapsed >= timeline[current_scene].duration_ms) {
       /* Auto-advance */
-      if (++current_scene >= number_of_scenes)
-        break;
+      if (++current_scene >= number_of_scenes) {
+        if (loop)
+          current_scene = 0;
+        else
+          break;
+      }
     } else {
       continue;
     }

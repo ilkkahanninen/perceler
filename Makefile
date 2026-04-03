@@ -87,5 +87,12 @@ $(TARGET): $(OBJS) $(LIBXMP_OBJS) $(LIBXMP_LOBJS)
 clean:
 	rm -rf $(BUILDDIR) $(ASSET_HDR) *.err
 
+DEMO_ARGS ?=
+
 run: all
+ifdef DEMO_ARGS
+	@sed 's/^demo\.exe$$/demo.exe $(DEMO_ARGS)/' dosbox-x.conf > $(BUILDDIR)/dosbox-x.conf
+	dosbox-x -conf $(BUILDDIR)/dosbox-x.conf
+else
 	dosbox-x -conf dosbox-x.conf
+endif
