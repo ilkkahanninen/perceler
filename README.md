@@ -77,7 +77,8 @@ make run DEMO_ARGS="0 1"
 
 ```
 src/
-  main.c              Entry point and timeline definition
+  main.c              Entry point, engine init/shutdown, scene selection
+  demo.c/h            Demo definition: timeline and song
   engine/             Engine modules
     audio.c/h           XM playback (libxmp-lite + SB16)
     bitmap.c/h          8-bit indexed BMP loader
@@ -165,12 +166,12 @@ Run the generator script to create the boilerplate:
 
 This creates `src/scenes/myeffect.c` and `src/scenes/myeffect.h` with the standard `Scene` struct wired up and a basic Mode X render loop.
 
-Then add it to the timeline in `src/main.c`. Use `XM_MS(bpm, speed, rows)` from `utils/xmtiming.h` to calculate durations from XM timing parameters. Music offsets are computed automatically by `timeline_init()`.
+Then add it to the timeline in `src/demo.c`. Use `XM_MS(bpm, speed, rows)` from `utils/xmtiming.h` to calculate durations from XM timing parameters. Music offsets are computed automatically by `timeline_init()`.
 
 ```c
 #include "scenes/myeffect.h"
 
-static TimelineEntry demo_timeline[] = {
+TimelineEntry demo_timeline[] = {
     {&plasma_scene,   XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
     {&myeffect_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&tunnel_scene,   XM_MS(BPM, SPEED, PATTERN_LEN * 4)},

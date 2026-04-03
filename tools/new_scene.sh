@@ -66,6 +66,6 @@ EOF
 
 echo "Created $C_FILE and $H_FILE"
 echo ""
-echo "To use it, add to your timeline in main.c:"
+echo "To use it, add to the timeline in src/demo.c:"
 echo "  #include \"scenes/${NAME}.h\""
-echo "  { &${NAME}_scene, 5000 },"
+echo "  {&${NAME}_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},"

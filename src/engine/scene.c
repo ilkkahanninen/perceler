@@ -12,6 +12,33 @@
 #include "modex.h"
 #include "timer.h"
 
+#include <stdlib.h>
+
+int timeline_init(TimelineEntry *tl) {
+  int n = 0;
+  unsigned long offset = 0;
+  while (tl[n].scene) {
+    tl[n].music_offset_ms = offset;
+    offset += tl[n].duration_ms;
+    n++;
+  }
+  return n;
+}
+
+int timeline_select(int argc, char *argv[], const TimelineEntry *source,
+                    int source_len, TimelineEntry *dest, int max) {
+  int i, n = 0;
+  for (i = 1; i < argc && n < max; i++) {
+    int idx = atoi(argv[i]);
+    if (idx >= 0 && idx < source_len)
+      dest[n++] = source[idx];
+  }
+  dest[n].scene = 0;
+  dest[n].duration_ms = 0;
+  dest[n].music_offset_ms = 0;
+  return n;
+}
+
 void run_timeline(const TimelineEntry *timeline, int loop) {
   unsigned int draw_page = MODEX_PAGE1;
   unsigned long scene_start, elapsed;

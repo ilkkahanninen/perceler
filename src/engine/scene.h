@@ -15,6 +15,19 @@ typedef struct {
 } TimelineEntry;
 
 /*
+ * Compute music_offset_ms for each entry from cumulative durations.
+ * Returns the number of scenes (excluding the sentinel).
+ */
+int timeline_init(TimelineEntry *tl);
+
+/*
+ * Build a filtered timeline from command-line scene indices.
+ * Returns the number of selected scenes.
+ */
+int timeline_select(int argc, char *argv[], const TimelineEntry *source,
+                    int source_len, TimelineEntry *dest, int max);
+
+/*
  * Run through a timeline of scenes.
  * Returns when the timeline ends or ESC is pressed.
  * Terminate the array with { NULL, 0 }.
