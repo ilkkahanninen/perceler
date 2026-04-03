@@ -12,14 +12,6 @@
 #include "modex.h"
 #include "timer.h"
 
-static unsigned long music_offset(const TimelineEntry *timeline, int idx) {
-  unsigned long ms = 0;
-  int i;
-  for (i = 0; i < idx; i++)
-    ms += timeline[i].duration_ms;
-  return ms;
-}
-
 void run_timeline(const TimelineEntry *timeline, int loop) {
   unsigned int draw_page = MODEX_PAGE1;
   unsigned long scene_start, elapsed;
@@ -37,7 +29,7 @@ void run_timeline(const TimelineEntry *timeline, int loop) {
   current_scene = 0;
   need_init = 1;
   scene_start = timer_ms();
-  audio_seek(0);
+  audio_seek(timeline[0].music_offset_ms);
 
   while (!key_pressed(KEY_ESC)) {
     if (need_init) {
@@ -76,7 +68,7 @@ void run_timeline(const TimelineEntry *timeline, int loop) {
     /* Scene changed — reset timing */
     need_init = 1;
     scene_start = timer_ms();
-    audio_seek(music_offset(timeline, current_scene));
+    audio_seek(timeline[current_scene].music_offset_ms);
   }
 
   for (current_scene = 0; current_scene < number_of_scenes; current_scene++)

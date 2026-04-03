@@ -14,16 +14,27 @@
 #include "engine/timer.h"
 #include "scenes/plasma.h"
 #include "scenes/tunnel.h"
+#include "utils/xmtiming.h"
 
 #include <stdlib.h>
 
-static const TimelineEntry demo_timeline[] = {
-    {&plasma_scene, 10000}, {&tunnel_scene, 10000}, {0, 0}};
+#define BPM 162
+#define SPEED 3
+#define PATTERN_LEN 128
 
-static int timeline_length(const TimelineEntry *tl) {
+static TimelineEntry demo_timeline[] = {
+    {&plasma_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
+    {&tunnel_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
+    {0, 0, 0}};
+
+static int timeline_init(TimelineEntry *tl) {
   int n = 0;
-  while (tl[n].scene)
+  unsigned long offset = 0;
+  while (tl[n].scene) {
+    tl[n].music_offset_ms = offset;
+    offset += tl[n].duration_ms;
     n++;
+  }
   return n;
 }
 
@@ -37,22 +48,25 @@ static int build_selection(int argc, char *argv[], const TimelineEntry *source,
   }
   dest[n].scene = 0;
   dest[n].duration_ms = 0;
+  dest[n].music_offset_ms = 0;
   return n;
 }
 
 int main(int argc, char *argv[]) {
   TimelineEntry selected[17];
   int have_selection;
+  int num_scenes;
 
   modex_init();
   keyboard_init();
   timer_init();
   audio_init();
-  audio_load(ASSET_MUSIC_XM);
+  audio_load(ASSET_J9_THGHT_XM);
 
-  have_selection =
-      argc > 1 && build_selection(argc, argv, demo_timeline,
-                                  timeline_length(demo_timeline), selected, 16);
+  num_scenes = timeline_init(demo_timeline);
+
+  have_selection = argc > 1 && build_selection(argc, argv, demo_timeline,
+                                               num_scenes, selected, 16);
 
   if (have_selection)
     run_timeline(selected, 1);

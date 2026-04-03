@@ -92,6 +92,7 @@ src/
     tunnel.c/h          Textured tunnel flythrough
   utils/              Shared utilities for scenes
     dither.h            Ordered dithering threshold maps (8x8)
+    xmtiming.h          XM_MS() macro: BPM/speed/rows to milliseconds
 assets/               Source asset files (BMP, XM)
 tools/
   new_scene.sh          Generates boilerplate for a new scene
@@ -164,17 +165,16 @@ Run the generator script to create the boilerplate:
 
 This creates `src/scenes/myeffect.c` and `src/scenes/myeffect.h` with the standard `Scene` struct wired up and a basic Mode X render loop.
 
-Then add it to the timeline in `src/main.c`:
+Then add it to the timeline in `src/main.c`. Use `XM_MS(bpm, speed, rows)` from `utils/xmtiming.h` to calculate durations from XM timing parameters. Music offsets are computed automatically by `timeline_init()`.
 
 ```c
 #include "scenes/myeffect.h"
 
-static const TimelineEntry demo_timeline[] = {
-    { &plasma_scene,   10000 },
-    { &myeffect_scene,  5000 },
-    { &tunnel_scene,   10000 },
-    { 0, 0 }
-};
+static TimelineEntry demo_timeline[] = {
+    {&plasma_scene,   XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
+    {&myeffect_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    {&tunnel_scene,   XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
+    {0, 0, 0}};
 ```
 
 New source files are picked up automatically by the Makefile.

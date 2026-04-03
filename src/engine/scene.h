@@ -10,7 +10,8 @@ typedef struct {
 
 typedef struct {
   const Scene *scene;
-  unsigned long duration_ms; /* 0 = run until ESC */
+  unsigned long duration_ms;     /* 0 = run until ESC */
+  unsigned long music_offset_ms; /* absolute position in the song */
 } TimelineEntry;
 
 /*
