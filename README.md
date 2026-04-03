@@ -82,6 +82,7 @@ src/
     dither.h            Ordered dithering threshold maps (8x8)
 assets/               Source asset files (BMP, XM)
 tools/
+  new_scene.sh          Generates boilerplate for a new scene
   pack_assets.py        Packs assets into demo.dat + generates assets.h
   make_palette.py       Generates palette preview BMP
 ```
@@ -143,31 +144,15 @@ Key functions:
 
 ## Adding a new scene
 
-1. Create `src/scenes/myeffect.c` and `src/scenes/myeffect.h`:
+Run the generator script to create the boilerplate:
 
-```c
-// myeffect.h
-#ifndef MYEFFECT_H
-#define MYEFFECT_H
-#include "../engine/scene.h"
-extern const Scene myeffect_scene;
-#endif
+```sh
+./tools/new_scene.sh myeffect
 ```
 
-```c
-// myeffect.c
-#include "myeffect.h"
-#include "../engine/modex.h"
+This creates `src/scenes/myeffect.c` and `src/scenes/myeffect.h` with the standard `Scene` struct wired up and a basic Mode X render loop.
 
-static void myeffect_setup(void) { /* allocate resources */ }
-static void myeffect_init(void) { /* set palette, one-time per scene entry */ }
-static void myeffect_shutdown(void) { /* free resources */ }
-static void myeffect_render(unsigned int draw_page, unsigned char frame) { /* draw */ }
-
-const Scene myeffect_scene = { myeffect_setup, myeffect_init, myeffect_shutdown, myeffect_render };
-```
-
-2. Add it to the timeline in `src/main.c`:
+Then add it to the timeline in `src/main.c`:
 
 ```c
 #include "scenes/myeffect.h"
