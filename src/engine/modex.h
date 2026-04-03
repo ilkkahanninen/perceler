@@ -19,6 +19,7 @@ void modex_setpage(unsigned int offset);
 void modex_putpixel(int x, int y, unsigned char color, unsigned int page);
 void modex_setplane(int plane);
 void modex_clear(unsigned char color, unsigned int page);
-void modex_setpalette(unsigned char index, unsigned char r, unsigned char g, unsigned char b);
+void modex_setpalette(unsigned char index, unsigned char r, unsigned char g,
+                      unsigned char b);
 
 #endif

@@ -2,15 +2,15 @@
 #define SCENE_H
 
 typedef struct {
-    void (*setup)(void);
-    void (*init)(void);
-    void (*shutdown)(void);
-    void (*render)(unsigned int draw_page, unsigned char frame);
+  void (*setup)(void);
+  void (*init)(void);
+  void (*shutdown)(void);
+  void (*render)(unsigned int draw_page, unsigned char frame);
 } Scene;
 
 typedef struct {
-    const Scene  *scene;
-    unsigned long duration_ms;  /* 0 = run until ESC */
+  const Scene *scene;
+  unsigned long duration_ms; /* 0 = run until ESC */
 } TimelineEntry;
 
 /*

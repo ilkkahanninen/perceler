@@ -12,13 +12,14 @@
  */
 
 typedef struct {
-    int           width;
-    int           height;
-    unsigned char *pixels;  /* width * height bytes */
-    Palette       palette;
+  int width;
+  int height;
+  unsigned char *pixels; /* width * height bytes */
+  Palette palette;
 } Bitmap;
 
-/* Load an 8-bit uncompressed BMP from the packed data file. Returns 0 on error. */
+/* Load an 8-bit uncompressed BMP from the packed data file. Returns 0 on error.
+ */
 Bitmap *bitmap_load(Asset asset);
 
 /*
@@ -26,9 +27,9 @@ Bitmap *bitmap_load(Asset asset);
  * Color index 0 is treated as transparent (not written).
  * Clips to screen bounds automatically.
  */
-void    bitmap_blit(const Bitmap *bmp, int dx, int dy, unsigned int page);
+void bitmap_blit(const Bitmap *bmp, int dx, int dy, unsigned int page);
 
 /* Free a bitmap returned by bitmap_load(). */
-void    bitmap_free(Bitmap *bmp);
+void bitmap_free(Bitmap *bmp);
 
 #endif

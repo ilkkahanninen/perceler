@@ -85,7 +85,7 @@ $(TARGET): $(OBJS) $(LIBXMP_OBJS) $(LIBXMP_LOBJS)
 	$(WLINK) name $@ system dos32a op stub=$(WATCOM)/binw/dos32a.exe $(patsubst %,file %,$(OBJS) $(LIBXMP_OBJS) $(LIBXMP_LOBJS))
 
 clean:
-	rm -rf $(BUILDDIR) $(ASSET_HDR)
+	rm -rf $(BUILDDIR) $(ASSET_HDR) *.err
 
 run: all
 	dosbox-x -conf dosbox-x.conf

@@ -6,10 +6,12 @@
  * offset each frame creates the illusion of flying through a tunnel.
  */
 
+#include "tunnel.h"
+
+#include "../engine/modex.h"
+
 #include <math.h>
 #include <stdlib.h>
-#include "tunnel.h"
-#include "../engine/modex.h"
 
 #define TEX_SIZE 256
 #define CX (MODEX_WIDTH / 2)
@@ -24,98 +26,88 @@ static unsigned char *dist_tab;
 /* Procedural texture */
 static unsigned char texture[TEX_SIZE * TEX_SIZE];
 
-static void generate_texture(void)
-{
-    int u, v;
-    for (v = 0; v < TEX_SIZE; v++) {
-        for (u = 0; u < TEX_SIZE; u++) {
-            /* XOR pattern with some variation */
-            texture[v * TEX_SIZE + u] = (unsigned char)((u ^ v) + (u * v >> 6));
-        }
+static void generate_texture(void) {
+  int u, v;
+  for (v = 0; v < TEX_SIZE; v++) {
+    for (u = 0; u < TEX_SIZE; u++) {
+      /* XOR pattern with some variation */
+      texture[v * TEX_SIZE + u] = (unsigned char)((u ^ v) + (u * v >> 6));
     }
+  }
 }
 
-static void generate_tables(void)
-{
-    int x, y;
-    angle_tab = (unsigned char *)malloc(MODEX_WIDTH * MODEX_HEIGHT);
-    dist_tab  = (unsigned char *)malloc(MODEX_WIDTH * MODEX_HEIGHT);
+static void generate_tables(void) {
+  int x, y;
+  angle_tab = (unsigned char *)malloc(MODEX_WIDTH * MODEX_HEIGHT);
+  dist_tab = (unsigned char *)malloc(MODEX_WIDTH * MODEX_HEIGHT);
+
+  for (y = 0; y < MODEX_HEIGHT; y++) {
+    for (x = 0; x < MODEX_WIDTH; x++) {
+      double dx = (double)(x - CX);
+      double dy = (double)(y - CY);
+      double dist = sqrt(dx * dx + dy * dy);
+      double ang = atan2(dy, dx);
+      int idx = y * MODEX_WIDTH + x;
+
+      /* Map angle to 0-255 */
+      angle_tab[idx] = (unsigned char)(ang * 128.0 / PI + 128.0);
+
+      /* Map distance: inversely proportional for tunnel depth */
+      if (dist < 1.0)
+        dist = 1.0;
+      dist_tab[idx] = (unsigned char)(2048.0 / dist);
+    }
+  }
+}
+
+static void set_tunnel_palette(void) {
+  int i;
+  for (i = 0; i < 256; i++) {
+    unsigned char r, g, b;
+    r = (unsigned char)(32.0 * (1.0 + sin(i * PI / 128.0)));
+    g = (unsigned char)(20.0 * (1.0 + sin(i * PI / 64.0 + 2.0)));
+    b = (unsigned char)(32.0 * (1.0 + sin(i * PI / 96.0 + 4.0)));
+    modex_setpalette((unsigned char)i, r, g, b);
+  }
+}
+
+static void tunnel_setup(void) {
+  generate_texture();
+  generate_tables();
+}
+
+static void tunnel_init(void) {
+  set_tunnel_palette();
+}
+
+static void tunnel_shutdown(void) {
+  free(angle_tab);
+  free(dist_tab);
+  angle_tab = 0;
+  dist_tab = 0;
+}
+
+static void tunnel_render(unsigned int draw_page, unsigned char frame) {
+  int plane, x, y;
+  unsigned char shift_u = frame * 2;
+  unsigned char shift_v = frame;
+
+  for (plane = 0; plane < 4; plane++) {
+    volatile unsigned char *dst;
+
+    modex_setplane(plane);
+    dst = MODEX_VGAMEM + draw_page;
 
     for (y = 0; y < MODEX_HEIGHT; y++) {
-        for (x = 0; x < MODEX_WIDTH; x++) {
-            double dx = (double)(x - CX);
-            double dy = (double)(y - CY);
-            double dist = sqrt(dx * dx + dy * dy);
-            double ang  = atan2(dy, dx);
-            int idx = y * MODEX_WIDTH + x;
-
-            /* Map angle to 0-255 */
-            angle_tab[idx] = (unsigned char)(ang * 128.0 / PI + 128.0);
-
-            /* Map distance: inversely proportional for tunnel depth */
-            if (dist < 1.0) dist = 1.0;
-            dist_tab[idx] = (unsigned char)(2048.0 / dist);
-        }
+      for (x = plane; x < MODEX_WIDTH; x += 4) {
+        int idx = y * MODEX_WIDTH + x;
+        unsigned char u = angle_tab[idx] + shift_u;
+        unsigned char v = dist_tab[idx] + shift_v;
+        dst[y * 80 + (x >> 2)] = texture[v * TEX_SIZE + u];
+      }
     }
+  }
 }
 
-static void set_tunnel_palette(void)
-{
-    int i;
-    for (i = 0; i < 256; i++) {
-        unsigned char r, g, b;
-        r = (unsigned char)(32.0 * (1.0 + sin(i * PI / 128.0)));
-        g = (unsigned char)(20.0 * (1.0 + sin(i * PI / 64.0 + 2.0)));
-        b = (unsigned char)(32.0 * (1.0 + sin(i * PI / 96.0 + 4.0)));
-        modex_setpalette((unsigned char)i, r, g, b);
-    }
-}
-
-static void tunnel_setup(void)
-{
-    generate_texture();
-    generate_tables();
-}
-
-static void tunnel_init(void)
-{
-    set_tunnel_palette();
-}
-
-static void tunnel_shutdown(void)
-{
-    free(angle_tab);
-    free(dist_tab);
-    angle_tab = 0;
-    dist_tab  = 0;
-}
-
-static void tunnel_render(unsigned int draw_page, unsigned char frame)
-{
-    int plane, x, y;
-    unsigned char shift_u = frame * 2;
-    unsigned char shift_v = frame;
-
-    for (plane = 0; plane < 4; plane++) {
-        volatile unsigned char *dst;
-
-        modex_setplane(plane);
-        dst = MODEX_VGAMEM + draw_page;
-
-        for (y = 0; y < MODEX_HEIGHT; y++) {
-            for (x = plane; x < MODEX_WIDTH; x += 4) {
-                int idx = y * MODEX_WIDTH + x;
-                unsigned char u = angle_tab[idx] + shift_u;
-                unsigned char v = dist_tab[idx] + shift_v;
-                dst[y * 80 + (x >> 2)] = texture[v * TEX_SIZE + u];
-            }
-        }
-    }
-}
-
-const Scene tunnel_scene = {
-    tunnel_setup,
-    tunnel_init,
-    tunnel_shutdown,
-    tunnel_render
-};
+const Scene tunnel_scene = {tunnel_setup, tunnel_init, tunnel_shutdown,
+                            tunnel_render};

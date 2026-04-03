@@ -6,6 +6,7 @@
  */
 
 #include "scene.h"
+
 #include "audio.h"
 #include "keyboard.h"
 #include "modex.h"

@@ -9,14 +9,14 @@
  * Initialize SB16 audio output.
  * Returns 0 on success, negative on error.
  */
-int  audio_init(void);
+int audio_init(void);
 
 /*
  * Load and immediately start playing an XM module from the packed data file.
  * asset: position and size within demo.dat.
  * Returns 0 on success, negative on error.
  */
-int  audio_load(Asset asset);
+int audio_load(Asset asset);
 
 /*
  * Must be called once per main-loop iteration to fill the audio buffer.
