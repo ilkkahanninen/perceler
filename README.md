@@ -179,3 +179,7 @@ TimelineEntry demo_timeline[] = {
 ```
 
 New source files are picked up automatically by the Makefile.
+
+## License
+
+See [LICENSE](LICENSE). Free to use with attribution. Cannot be used to promote sexism, racism, homophobia, transphobia, fascism, imperialism, or apartheid.
