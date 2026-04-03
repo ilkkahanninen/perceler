@@ -46,8 +46,10 @@ int audio_init(void)
     return 0;
 }
 
-int audio_load(unsigned long offset, unsigned long length)
+int audio_load(Asset asset)
 {
+    unsigned long offset = asset.offset;
+    unsigned long length = asset.length;
     void *buf;
 
     if (!g_ctx) return -1;

@@ -95,8 +95,10 @@ static Bitmap *bitmap_parse(const unsigned char *buf, unsigned long buf_len)
 /* ------------------------------------------------------------------ */
 /* Public API                                                           */
 /* ------------------------------------------------------------------ */
-Bitmap *bitmap_load(unsigned long offset, unsigned long length)
+Bitmap *bitmap_load(Asset asset)
 {
+    unsigned long offset = asset.offset;
+    unsigned long length = asset.length;
     unsigned char *buf;
     Bitmap *bmp;
 

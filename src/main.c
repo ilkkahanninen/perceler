@@ -23,7 +23,7 @@ int main(void)
     keyboard_init();
     timer_init();
     audio_init();
-    audio_load(ASSET_MUSIC_XM_OFFSET, ASSET_MUSIC_XM_LENGTH);
+    audio_load(ASSET_MUSIC_XM);
 
     scene_run_timeline(demo_timeline);
 

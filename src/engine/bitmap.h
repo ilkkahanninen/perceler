@@ -1,6 +1,8 @@
 #ifndef BITMAP_H
 #define BITMAP_H
 
+#include "../assets.h"
+
 /*
  * 8-bit indexed BMP loader.
  *
@@ -17,7 +19,7 @@ typedef struct {
 } Bitmap;
 
 /* Load an 8-bit uncompressed BMP from the packed data file. Returns 0 on error. */
-Bitmap *bitmap_load(unsigned long offset, unsigned long length);
+Bitmap *bitmap_load(Asset asset);
 
 /* Apply the bitmap's palette to the VGA DAC (all 256 entries). */
 void    bitmap_apply_palette(const Bitmap *bmp);

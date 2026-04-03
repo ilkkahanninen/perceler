@@ -28,7 +28,7 @@ static void init_sintab(void)
 static void plasma_init(void)
 {
     init_sintab();
-    hello = bitmap_load(ASSET_HELLO_BMP_OFFSET, ASSET_HELLO_BMP_LENGTH);
+    hello = bitmap_load(ASSET_HELLO_BMP);
 }
 
 static void plasma_shutdown(void)

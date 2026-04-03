@@ -50,9 +50,12 @@ def main():
         h.write("#ifndef ASSETS_H\n")
         h.write("#define ASSETS_H\n\n")
         h.write(f'#define ASSET_DAT_FILE "demo.dat"\n\n')
+        h.write("typedef struct {\n")
+        h.write("    unsigned long offset;\n")
+        h.write("    unsigned long length;\n")
+        h.write("} Asset;\n\n")
         for name, off, length in entries:
-            h.write(f"#define ASSET_{name}_OFFSET {off}UL\n")
-            h.write(f"#define ASSET_{name}_LENGTH {length}UL\n\n")
+            h.write(f"static const Asset ASSET_{name} = {{ {off}UL, {length}UL }};\n\n")
         h.write("#endif\n")
 
     print(f"Packed {len(entries)} assets into {dat_path} ({offset} bytes)")
