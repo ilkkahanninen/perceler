@@ -33,6 +33,11 @@ int timeline_select(int argc, char *argv[], const TimelineEntry *source,
  * Terminate the array with { NULL, 0 }.
  * If loop is non-zero, restart from the beginning after the last scene.
  */
-void run_timeline(const TimelineEntry *timeline, int loop);
+typedef struct {
+  unsigned long total_frames;
+  unsigned long total_ms;
+} TimelineStats;
+
+void run_timeline(const TimelineEntry *timeline, int loop, TimelineStats *stats);
 
 #endif

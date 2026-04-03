@@ -39,8 +39,10 @@ int timeline_select(int argc, char *argv[], const TimelineEntry *source,
   return n;
 }
 
-void run_timeline(const TimelineEntry *timeline, int loop) {
-  unsigned long scene_start, elapsed;
+void run_timeline(const TimelineEntry *timeline, int loop,
+                  TimelineStats *stats) {
+  unsigned long scene_start, elapsed, run_start;
+  unsigned long frames = 0;
   int number_of_scenes, current_scene, need_init;
 
   for (number_of_scenes = 0; timeline[number_of_scenes].scene != 0;
@@ -56,6 +58,7 @@ void run_timeline(const TimelineEntry *timeline, int loop) {
   need_init = 1;
   scene_start = timer_ms();
   audio_seek(timeline[0].music_offset_ms);
+  run_start = timer_ms();
 
   while (!key_pressed(KEY_ESC)) {
     if (need_init) {
@@ -69,6 +72,7 @@ void run_timeline(const TimelineEntry *timeline, int loop) {
 
     vga_vsync();
     audio_update();
+    frames++;
 
     /* Jump to previous/next scene */
     if (key_pressed(KEY_LEFT) && current_scene > 0)
@@ -92,6 +96,11 @@ void run_timeline(const TimelineEntry *timeline, int loop) {
     need_init = 1;
     scene_start = timer_ms();
     audio_seek(timeline[current_scene].music_offset_ms);
+  }
+
+  if (stats) {
+    stats->total_frames = frames;
+    stats->total_ms = timer_ms() - run_start;
   }
 
   for (current_scene = 0; current_scene < number_of_scenes; current_scene++)

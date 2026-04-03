@@ -9,12 +9,15 @@
 #include "../demo.h"
 #include "audio.h"
 #include "keyboard.h"
-#include "vga.h"
 #include "scene.h"
 #include "timer.h"
+#include "vga.h"
+
+#include <stdio.h>
 
 int main(int argc, char *argv[]) {
   TimelineEntry selected[17];
+  TimelineStats stats;
   int have_selection;
   int num_scenes;
 
@@ -30,14 +33,17 @@ int main(int argc, char *argv[]) {
                                                num_scenes, selected, 16);
 
   if (have_selection)
-    run_timeline(selected, 1);
+    run_timeline(selected, 1, &stats);
   else
-    run_timeline(demo_timeline, 0);
+    run_timeline(demo_timeline, 0, &stats);
 
   audio_shutdown();
   timer_shutdown();
   keyboard_shutdown();
   vga_exit();
+
+  if (stats.total_ms > 0)
+    printf("Average FPS: %lu\n", stats.total_frames * 1000 / stats.total_ms);
 
   return 0;
 }
