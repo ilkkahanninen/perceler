@@ -84,6 +84,13 @@ $(BUILDDIR)/xmpl_%.obj: $(LIBXMP_DIR)/src/loaders/%.c | $(BUILDDIR)
 $(TARGET): $(OBJS) $(LIBXMP_OBJS) $(LIBXMP_LOBJS)
 	$(WLINK) name $@ system dos32a op stub=$(WATCOM)/binw/dos32a.exe $(patsubst %,file %,$(OBJS) $(LIBXMP_OBJS) $(LIBXMP_LOBJS))
 
+RELEASEDIR ?= release
+
+release: all
+	mkdir -p $(RELEASEDIR)
+	cp $(BUILDDIR)/demo.exe $(RELEASEDIR)/
+	cp $(BUILDDIR)/demo.dat $(RELEASEDIR)/
+
 clean:
 	rm -rf $(BUILDDIR) $(ASSET_HDR) *.err
 

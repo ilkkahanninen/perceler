@@ -66,12 +66,13 @@ make run DEMO_ARGS="0 1"
 
 ## Make targets
 
-| Target        | Description                                                |
-| ------------- | ---------------------------------------------------------- |
-| `make`        | Build everything                                           |
-| `make assets` | Pack assets only (generates `demo.dat` and `src/assets.h`) |
-| `make run`    | Build and launch in DOSBox-X                               |
-| `make clean`  | Remove all build artifacts                                 |
+| Target         | Description                                                |
+| -------------- | ---------------------------------------------------------- |
+| `make`         | Build everything                                           |
+| `make assets`  | Pack assets only (generates `demo.dat` and `src/assets.h`) |
+| `make run`     | Build and launch in DOSBox-X                               |
+| `make release` | Build and copy `demo.exe` + `demo.dat` to `release/`      |
+| `make clean`   | Remove all build artifacts                                 |
 
 ## Project structure
 

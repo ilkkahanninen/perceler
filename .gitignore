@@ -8,3 +8,4 @@ build/
 *.sym
 src/assets.h
 .DS_Store
+release/
