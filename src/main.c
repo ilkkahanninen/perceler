@@ -1,5 +1,5 @@
 /*
- * DOS Demo - Main entry point
+ * Perceler - Main entry point
  */
 
 #include "engine/modex.h"

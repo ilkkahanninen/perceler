@@ -1,4 +1,4 @@
-# DOS Demo Makefile - uses Open Watcom V2 for cross-compilation to DOS/32A
+# Perceler Makefile - uses Open Watcom V2 for cross-compilation to DOS/32A
 #
 # Usage:
 #   make          - build demo.exe
