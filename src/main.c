@@ -2,35 +2,31 @@
  * Perceler - Main entry point
  */
 
-#include "engine/modex.h"
-#include "engine/keyboard.h"
+#include "assets.h"
 #include "engine/audio.h"
-#include "engine/timer.h"
+#include "engine/keyboard.h"
+#include "engine/modex.h"
 #include "engine/scene.h"
+#include "engine/timer.h"
 #include "scenes/plasma.h"
 #include "scenes/tunnel.h"
-#include "assets.h"
 
 static const TimelineEntry demo_timeline[] = {
-    { &plasma_scene,  10000 },
-    { &tunnel_scene,  10000 },
-    { 0, 0 }
-};
+    {&plasma_scene, 10000}, {&tunnel_scene, 10000}, {0, 0}};
 
-int main(void)
-{
-    modex_init();
-    keyboard_init();
-    timer_init();
-    audio_init();
-    audio_load(ASSET_MUSIC_XM);
+int main(void) {
+  modex_init();
+  keyboard_init();
+  timer_init();
+  audio_init();
+  audio_load(ASSET_MUSIC_XM);
 
-    scene_run_timeline(demo_timeline);
+  run_timeline(demo_timeline);
 
-    audio_shutdown();
-    timer_shutdown();
-    keyboard_shutdown();
-    modex_exit();
+  audio_shutdown();
+  timer_shutdown();
+  keyboard_shutdown();
+  modex_exit();
 
-    return 0;
+  return 0;
 }

@@ -19,7 +19,7 @@ static unsigned long music_offset(const TimelineEntry *timeline, int idx) {
   return ms;
 }
 
-void scene_run_timeline(const TimelineEntry *timeline) {
+void run_timeline(const TimelineEntry *timeline) {
   unsigned int draw_page = MODEX_PAGE1;
   unsigned long scene_start, elapsed;
   int number_of_scenes, current_scene, need_init;
