@@ -6,21 +6,19 @@
 #include <stdlib.h>
 #include "data.h"
 
-#define DAT_FILE "demo.dat"
-
-void *data_read(unsigned long offset, unsigned long length)
+void *data_read(Asset asset)
 {
     FILE *f;
     void *buf;
 
-    f = fopen(DAT_FILE, "rb");
+    f = fopen(ASSET_DAT_FILE, "rb");
     if (!f) return 0;
 
-    buf = malloc((unsigned)length);
+    buf = malloc((unsigned)asset.length);
     if (!buf) { fclose(f); return 0; }
 
-    fseek(f, (long)offset, SEEK_SET);
-    if (fread(buf, 1, (unsigned)length, f) != length) {
+    fseek(f, (long)asset.offset, SEEK_SET);
+    if (fread(buf, 1, (unsigned)asset.length, f) != asset.length) {
         free(buf);
         fclose(f);
         return 0;

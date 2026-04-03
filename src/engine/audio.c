@@ -48,8 +48,6 @@ int audio_init(void)
 
 int audio_load(Asset asset)
 {
-    unsigned long offset = asset.offset;
-    unsigned long length = asset.length;
     void *buf;
 
     if (!g_ctx) return -1;
@@ -60,10 +58,10 @@ int audio_load(Asset asset)
         g_loaded = 0;
     }
 
-    buf = data_read(offset, length);
+    buf = data_read(asset);
     if (!buf) return -1;
 
-    if (xmp_load_module_from_memory(g_ctx, buf, (long)length) != 0) {
+    if (xmp_load_module_from_memory(g_ctx, buf, (long)asset.length) != 0) {
         free(buf);
         return -1;
     }

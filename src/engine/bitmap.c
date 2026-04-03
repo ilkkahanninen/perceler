@@ -97,15 +97,13 @@ static Bitmap *bitmap_parse(const unsigned char *buf, unsigned long buf_len)
 /* ------------------------------------------------------------------ */
 Bitmap *bitmap_load(Asset asset)
 {
-    unsigned long offset = asset.offset;
-    unsigned long length = asset.length;
     unsigned char *buf;
     Bitmap *bmp;
 
-    buf = (unsigned char *)data_read(offset, length);
+    buf = (unsigned char *)data_read(asset);
     if (!buf) return 0;
 
-    bmp = bitmap_parse(buf, length);
+    bmp = bitmap_parse(buf, asset.length);
     free(buf);
     return bmp;
 }

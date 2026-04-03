@@ -34,6 +34,8 @@ void scene_run_timeline(const TimelineEntry *timeline)
         scene_start = timer_ms();
 
         while (!key_pressed(KEY_ESC)) {
+            int jumped = 0;
+
             elapsed = timer_ms() - scene_start;
             timeline[idx].scene->render(draw_page,
                 (unsigned char)(elapsed * 60 / 1000));
@@ -48,13 +50,22 @@ void scene_run_timeline(const TimelineEntry *timeline)
             /* Jump to previous scene */
             if (key_pressed(KEY_LEFT) && idx > 0) {
                 idx--;
-                goto seek;
+                jumped = 1;
             }
 
             /* Jump to next scene */
-            if (key_pressed(KEY_RIGHT) && idx < count - 1) {
+            if (!jumped && key_pressed(KEY_RIGHT) && idx < count - 1) {
                 idx++;
-                goto seek;
+                jumped = 1;
+            }
+
+            if (jumped) {
+                unsigned long music_ms = 0;
+                int i;
+                for (i = 0; i < idx; i++)
+                    music_ms += timeline[i].duration_ms;
+                audio_seek(music_ms);
+                break;
             }
 
             /* Auto-advance when duration expires */
@@ -65,16 +76,6 @@ void scene_run_timeline(const TimelineEntry *timeline)
                     goto done;
                 break;
             }
-        }
-        continue;
-
-    seek:
-        {
-            unsigned long music_ms = 0;
-            int i;
-            for (i = 0; i < idx; i++)
-                music_ms += timeline[i].duration_ms;
-            audio_seek(music_ms);
         }
     }
 
