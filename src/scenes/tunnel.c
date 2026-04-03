@@ -8,9 +8,8 @@
 
 #include "tunnel.h"
 
-#include "../engine/modex.h"
-
 #include <math.h>
+#include <modex.h>
 #include <stdlib.h>
 
 #define TEX_SIZE 256

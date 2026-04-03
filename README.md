@@ -78,11 +78,10 @@ make run DEMO_ARGS="0 1"
 
 ```
 src/
-  main.c              Entry point, engine init/shutdown, scene selection
   demo.c/h            Demo definition: timeline and song
   engine/             Engine modules
+    main.c              Entry point, engine init/shutdown, scene selection
     audio.c/h           XM playback (libxmp-lite + SB16)
-    bitmap.c/h          8-bit indexed BMP loader
     data.c/h            Asset reader (reads from demo.dat)
     keyboard.c/h        Interrupt-driven keyboard handler
     modex.c/h           VGA Mode-X 320x240 graphics
@@ -92,11 +91,13 @@ src/
   scenes/             Demo effects
     plasma.c/h          Sine-based plasma effect
     tunnel.c/h          Textured tunnel flythrough
-  utils/              Shared utilities for scenes
-    dither.h            Ordered dithering threshold maps (8x8)
-    palette.c/h         Palette utilities (apply, lightness levels)
-    sintab.c/h          Precomputed sine table (256 entries, values 0-255)
-    xmtiming.h          XM_MS() macro: BPM/speed/rows to milliseconds
+    utils/              Shared utilities for scenes
+      bitmap.c/h          8-bit indexed BMP loader
+      dither.h            Ordered dithering threshold maps (8x8)
+      math.c/h            Precomputed sine table (256 entries, values 0-255)
+      palette.c/h         Palette utilities (apply, lightness levels)
+  utils/              Shared engine utilities
+    timing.h            XM_MS() macro: BPM/speed/rows to milliseconds
 assets/               Source asset files (BMP, XM)
 tools/
   new_scene.sh          Generates boilerplate for a new scene
@@ -122,8 +123,8 @@ The constant name is the filename uppercased with dots and hyphens replaced by u
 Bitmaps must be 8-bit uncompressed BMP files (256-color indexed). The engine loads the embedded palette and converts it to VGA DAC range (0-63) automatically.
 
 ```c
-#include "../engine/bitmap.h"
-#include "assets.h"
+#include "utils/bitmap.h"
+#include "../assets.h"
 
 static Bitmap *logo;
 
@@ -166,7 +167,7 @@ Run the generator script to create the boilerplate:
 
 This creates `src/scenes/myeffect.c` and `src/scenes/myeffect.h` with the standard `Scene` struct wired up and a basic Mode X render loop.
 
-Then add it to the timeline in `src/demo.c`. Use `XM_MS(bpm, speed, rows)` from `utils/xmtiming.h` to calculate durations from XM timing parameters. Music offsets are computed automatically by `timeline_init()`.
+Then add it to the timeline in `src/demo.c`. Use `XM_MS(bpm, speed, rows)` from `utils/timing.h` to calculate durations from XM timing parameters. Music offsets are computed automatically by `timeline_init()`.
 
 ```c
 #include "scenes/myeffect.h"

@@ -25,7 +25,7 @@ cat > "$H_FILE" << EOF
 #ifndef ${GUARD}
 #define ${GUARD}
 
-#include "../engine/scene.h"
+#include <scene.h>
 
 extern const Scene ${NAME}_scene;
 
@@ -35,7 +35,7 @@ EOF
 cat > "$C_FILE" << EOF
 #include "${NAME}.h"
 
-#include "../engine/modex.h"
+#include <modex.h>
 
 static void ${NAME}_setup(void) {}
 

@@ -6,11 +6,11 @@
 
 #include "plasma.h"
 
-#include "../engine/bitmap.h"
-#include "../engine/modex.h"
-#include "../utils/sintab.h"
-#include "assets.h"
+#include "../assets.h"
+#include "utils/bitmap.h"
+#include "utils/math.h"
 
+#include <modex.h>
 #include <stdlib.h>
 
 static Bitmap *hello;

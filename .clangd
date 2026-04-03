@@ -1,6 +1,7 @@
 CompileFlags:
   Add:
     - -Isrc
+    - -Isrc/engine
     - -Ilibs/libxmp-lite/include/libxmp-lite
     - -Ilibs/libxmp-lite/src
     - -DLIBXMP_CORE_PLAYER

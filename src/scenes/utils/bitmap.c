@@ -13,9 +13,8 @@
 
 #include "bitmap.h"
 
-#include "data.h"
-#include "modex.h"
-
+#include <data.h>
+#include <modex.h>
 #include <stdlib.h>
 #include <string.h>
 

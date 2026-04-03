@@ -2,7 +2,8 @@
 #define DEMO_H
 
 #include "assets.h"
-#include "engine/scene.h"
+
+#include <scene.h>
 
 extern TimelineEntry demo_timeline[];
 

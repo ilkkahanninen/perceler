@@ -6,12 +6,12 @@
  * Example: demo.exe 0 2  — runs scenes 0 and 2 in a loop.
  */
 
-#include "demo.h"
-#include "engine/audio.h"
-#include "engine/keyboard.h"
-#include "engine/modex.h"
-#include "engine/scene.h"
-#include "engine/timer.h"
+#include "../demo.h"
+#include "audio.h"
+#include "keyboard.h"
+#include "modex.h"
+#include "scene.h"
+#include "timer.h"
 
 int main(int argc, char *argv[]) {
   TimelineEntry selected[17];

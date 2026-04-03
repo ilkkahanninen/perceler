@@ -2,7 +2,7 @@
 
 #include "scenes/plasma.h"
 #include "scenes/tunnel.h"
-#include "utils/xmtiming.h"
+#include "utils/timing.h"
 
 #define BPM 162
 #define SPEED 3

@@ -21,19 +21,19 @@ LIBXMP_DIR := libs/libxmp-lite
 SRCDIR  := src
 BUILDDIR := build
 
-CFLAGS := -3r -fpi87 -fp3 -s -ox -mf -bt=dos -i=$(WATCOM)/h -i=$(LIBXMP_DIR)/include/libxmp-lite -i=$(LIBXMP_DIR)/src -i=$(SRCDIR) -DLIBXMP_CORE_PLAYER -DLIBXMP_NO_PROWIZARD
+CFLAGS := -3r -fpi87 -fp3 -s -ox -mf -bt=dos -i=$(WATCOM)/h -i=$(LIBXMP_DIR)/include/libxmp-lite -i=$(LIBXMP_DIR)/src -i=$(SRCDIR) -i=$(SRCDIR)/engine -DLIBXMP_CORE_PLAYER -DLIBXMP_NO_PROWIZARD
 TARGET  := $(BUILDDIR)/demo.exe
 
 MAIN_SRCS    := $(wildcard $(SRCDIR)/*.c)
 ENGINE_SRCS  := $(wildcard $(SRCDIR)/engine/*.c)
 SCENE_SRCS   := $(wildcard $(SRCDIR)/scenes/*.c)
-UTILS_SRCS   := $(wildcard $(SRCDIR)/utils/*.c)
+UTILS_SRCS   := $(wildcard $(SRCDIR)/scenes/utils/*.c)
 SRCS         := $(MAIN_SRCS) $(ENGINE_SRCS) $(SCENE_SRCS) $(UTILS_SRCS)
 
 MAIN_OBJS    := $(patsubst $(SRCDIR)/%.c,$(BUILDDIR)/%.obj,$(MAIN_SRCS))
 ENGINE_OBJS  := $(patsubst $(SRCDIR)/engine/%.c,$(BUILDDIR)/eng_%.obj,$(ENGINE_SRCS))
 SCENE_OBJS   := $(patsubst $(SRCDIR)/scenes/%.c,$(BUILDDIR)/scn_%.obj,$(SCENE_SRCS))
-UTILS_OBJS   := $(patsubst $(SRCDIR)/utils/%.c,$(BUILDDIR)/utl_%.obj,$(UTILS_SRCS))
+UTILS_OBJS   := $(patsubst $(SRCDIR)/scenes/utils/%.c,$(BUILDDIR)/utl_%.obj,$(UTILS_SRCS))
 OBJS         := $(MAIN_OBJS) $(ENGINE_OBJS) $(SCENE_OBJS) $(UTILS_OBJS)
 
 LIBXMP_SRCS   := $(wildcard $(LIBXMP_DIR)/src/*.c)
@@ -72,7 +72,7 @@ $(BUILDDIR)/eng_%.obj: $(SRCDIR)/engine/%.c | $(BUILDDIR)
 $(BUILDDIR)/scn_%.obj: $(SRCDIR)/scenes/%.c | $(BUILDDIR)
 	$(CC) $(CFLAGS) -fo=$@ $<
 
-$(BUILDDIR)/utl_%.obj: $(SRCDIR)/utils/%.c | $(BUILDDIR)
+$(BUILDDIR)/utl_%.obj: $(SRCDIR)/scenes/utils/%.c | $(BUILDDIR)
 	$(CC) $(CFLAGS) -fo=$@ $<
 
 $(BUILDDIR)/xmp_%.obj: $(LIBXMP_DIR)/src/%.c | $(BUILDDIR)

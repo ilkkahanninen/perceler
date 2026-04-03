@@ -1,8 +1,8 @@
 #ifndef BITMAP_H
 #define BITMAP_H
 
-#include "../assets.h"
-#include "../utils/palette.h"
+#include "../../assets.h"
+#include "palette.h"
 
 /*
  * 8-bit indexed BMP loader.

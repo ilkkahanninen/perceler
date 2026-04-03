@@ -1,4 +1,4 @@
-#include "sintab.h"
+#include "math.h"
 
 /* sintab[i] = (unsigned char)(128.0 + 127.0 * sin(i * pi / 128.0)) */
 const unsigned char sintab[256] = {
