@@ -11,7 +11,8 @@
  * Palette entries are in VGA DAC range (0-63).
  */
 
-typedef struct {
+typedef struct
+{
   int width;
   int height;
   unsigned char *pixels; /* width * height bytes */

@@ -62,7 +62,7 @@ static unsigned char sb_hdma = 5;
 /* ------------------------------------------------------------------ */
 /* Double-buffer state                                                  */
 /* ------------------------------------------------------------------ */
-#define HALF_BYTES                                                             \
+#define HALF_BYTES \
   ((unsigned long)(SB16_HALF_SAMPLES) * 2 * 2) /* stereo*16bit */
 #define FULL_BYTES (HALF_BYTES * 2)
 
@@ -92,13 +92,15 @@ static unsigned char g_irq_vec = 0;
 /* ------------------------------------------------------------------ */
 /* DSP helpers                                                          */
 /* ------------------------------------------------------------------ */
-static void dsp_write(unsigned char cmd) {
+static void dsp_write(unsigned char cmd)
+{
   while (inp(SB_WRITE) & 0x80)
     ;
   outp(SB_WRITE, cmd);
 }
 
-static int dsp_reset(void) {
+static int dsp_reset(void)
+{
   int i;
   outp(SB_RESET, 1);
   for (i = 0; i < 100; i++)
@@ -113,7 +115,8 @@ static int dsp_reset(void) {
 /* ------------------------------------------------------------------ */
 /* DMA channel 5 programmer                                             */
 /* ------------------------------------------------------------------ */
-static void dma5_program(unsigned long phys, unsigned long bytes) {
+static void dma5_program(unsigned long phys, unsigned long bytes)
+{
   /*
    * For 16-bit DMA (ch 5):
    *   physical byte address = page<<17 | addr_reg<<1
@@ -139,13 +142,15 @@ static void dma5_program(unsigned long phys, unsigned long bytes) {
 /* ------------------------------------------------------------------ */
 /* IRQ handler — minimal: ACK, set flag, EOI                            */
 /* ------------------------------------------------------------------ */
-static void __interrupt irq_handler(void) {
+static void __interrupt irq_handler(void)
+{
   inp(SB_ACK16); /* acknowledge SB16 16-bit IRQ */
 
   g_half ^= 1;
   g_need = 1;
 
-  if (g_irq_vec >= 0x70) { /* slave PIC (IRQ 8-15) */
+  if (g_irq_vec >= 0x70)
+  { /* slave PIC (IRQ 8-15) */
     outp(PIC2_CMD, PIC_EOI);
   }
   outp(PIC1_CMD, PIC_EOI);
@@ -154,11 +159,13 @@ static void __interrupt irq_handler(void) {
 /* ------------------------------------------------------------------ */
 /* BLASTER env parser                                                   */
 /* ------------------------------------------------------------------ */
-static void parse_blaster(void) {
+static void parse_blaster(void)
+{
   char *p = getenv("BLASTER");
   if (!p)
     return;
-  while (*p) {
+  while (*p)
+  {
     char c = *p++;
     if (c == 'A' || c == 'a')
       sb_base = (unsigned short)strtol(p, &p, 16);
@@ -178,7 +185,8 @@ static void parse_blaster(void) {
 /* ------------------------------------------------------------------ */
 /* Public API                                                           */
 /* ------------------------------------------------------------------ */
-int sb16_init(sb16_fill_fn fill) {
+int sb16_init(sb16_fill_fn fill)
+{
   union REGS r;
   struct SREGS sr;
   unsigned short seg;
@@ -214,7 +222,8 @@ int sb16_init(sb16_fill_fn fill) {
   g_buf = (short *)phys; /* flat model: linear == physical below 1 MB */
 
   /* --- Reset DSP --- */
-  if (dsp_reset() != 0) {
+  if (dsp_reset() != 0)
+  {
     r.w.ax = 0x0101;
     r.w.dx = g_dsel;
     int386(0x31, &r, &r);
@@ -236,7 +245,8 @@ int sb16_init(sb16_fill_fn fill) {
   r.w.cx = sr.cs;
   r.x.edx = (unsigned long)irq_handler;
   int386(0x31, &r, &r);
-  if (r.x.cflag) {
+  if (r.x.cflag)
+  {
     dsp_reset();
     r.w.ax = 0x0101;
     r.w.dx = g_dsel;
@@ -245,10 +255,13 @@ int sb16_init(sb16_fill_fn fill) {
   }
 
   /* Enable IRQ in PIC mask */
-  if (sb_irq < 8) {
+  if (sb_irq < 8)
+  {
     g_old_irq_mask = inp(PIC1_DATA);
     outp(PIC1_DATA, g_old_irq_mask & ~(1 << sb_irq));
-  } else {
+  }
+  else
+  {
     g_old_irq_mask = inp(PIC2_DATA);
     outp(PIC2_DATA, g_old_irq_mask & ~(1 << (sb_irq - 8)));
   }
@@ -278,7 +291,8 @@ int sb16_init(sb16_fill_fn fill) {
   return SB16_OK;
 }
 
-void sb16_update(void) {
+void sb16_update(void)
+{
   short *ptr;
   int half;
 
@@ -293,7 +307,8 @@ void sb16_update(void) {
   g_need = 0;
 }
 
-void sb16_shutdown(void) {
+void sb16_shutdown(void)
+{
   union REGS r;
 
   /* Stop DSP output */

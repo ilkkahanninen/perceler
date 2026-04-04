@@ -25,23 +25,29 @@ static unsigned char *dist_tab;
 /* Procedural texture */
 static unsigned char texture[TEX_SIZE * TEX_SIZE];
 
-static void generate_texture(void) {
+static void generate_texture(void)
+{
   int u, v;
-  for (v = 0; v < TEX_SIZE; v++) {
-    for (u = 0; u < TEX_SIZE; u++) {
+  for (v = 0; v < TEX_SIZE; v++)
+  {
+    for (u = 0; u < TEX_SIZE; u++)
+    {
       /* XOR pattern with some variation */
       texture[v * TEX_SIZE + u] = (unsigned char)((u ^ v) + (u * v >> 6));
     }
   }
 }
 
-static void generate_tables(void) {
+static void generate_tables(void)
+{
   int x, y;
   angle_tab = (unsigned char *)malloc(VGA_WIDTH * VGA_HEIGHT);
   dist_tab = (unsigned char *)malloc(VGA_WIDTH * VGA_HEIGHT);
 
-  for (y = 0; y < VGA_HEIGHT; y++) {
-    for (x = 0; x < VGA_WIDTH; x++) {
+  for (y = 0; y < VGA_HEIGHT; y++)
+  {
+    for (x = 0; x < VGA_WIDTH; x++)
+    {
       double dx = (double)(x - CX);
       double dy = (double)(y - CY);
       double dist = sqrt(dx * dx + dy * dy);
@@ -59,9 +65,11 @@ static void generate_tables(void) {
   }
 }
 
-static void set_tunnel_palette(void) {
+static void set_tunnel_palette(void)
+{
   int i;
-  for (i = 0; i < 256; i++) {
+  for (i = 0; i < 256; i++)
+  {
     unsigned char r, g, b;
     r = (unsigned char)(32.0 * (1.0 + sin(i * PI / 128.0)));
     g = (unsigned char)(20.0 * (1.0 + sin(i * PI / 64.0 + 2.0)));
@@ -70,31 +78,37 @@ static void set_tunnel_palette(void) {
   }
 }
 
-static void tunnel_setup(void) {
+static void tunnel_setup(void)
+{
   generate_texture();
   generate_tables();
 }
 
-static void tunnel_init(unsigned char *backbuffer) {
+static void tunnel_init(unsigned char *backbuffer)
+{
   (void)backbuffer;
   set_tunnel_palette();
 }
 
-static void tunnel_shutdown(void) {
+static void tunnel_shutdown(void)
+{
   free(angle_tab);
   free(dist_tab);
   angle_tab = 0;
   dist_tab = 0;
 }
 
-static void tunnel_render(unsigned char *backbuffer, unsigned int frame) {
+static void tunnel_render(unsigned char *backbuffer, unsigned int frame)
+{
   int x, y;
   unsigned char shift_u = frame * 2;
   unsigned char shift_v = frame;
   unsigned char *dst = backbuffer;
 
-  for (y = 0; y < VGA_HEIGHT; y++) {
-    for (x = 0; x < VGA_WIDTH; x++) {
+  for (y = 0; y < VGA_HEIGHT; y++)
+  {
+    for (x = 0; x < VGA_WIDTH; x++)
+    {
       int idx = y * VGA_WIDTH + x;
       unsigned char u = angle_tab[idx] + shift_u;
       unsigned char v = dist_tab[idx] + shift_v;

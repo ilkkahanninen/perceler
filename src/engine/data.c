@@ -7,7 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-void *data_read(Asset asset) {
+void *data_read(Asset asset)
+{
   FILE *f;
   void *buf;
 
@@ -16,13 +17,15 @@ void *data_read(Asset asset) {
     return 0;
 
   buf = malloc((unsigned)asset.length);
-  if (!buf) {
+  if (!buf)
+  {
     fclose(f);
     return 0;
   }
 
   fseek(f, (long)asset.offset, SEEK_SET);
-  if (fread(buf, 1, (unsigned)asset.length, f) != asset.length) {
+  if (fread(buf, 1, (unsigned)asset.length, f) != asset.length)
+  {
     free(buf);
     fclose(f);
     return 0;

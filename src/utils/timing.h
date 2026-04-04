@@ -6,7 +6,7 @@
  * speed: ticks per row
  * rows:  number of rows
  */
-#define XM_MS(bpm, speed, rows)                                                \
+#define XM_MS(bpm, speed, rows) \
   ((unsigned long)(rows) * (speed) * 2500UL / (bpm))
 
 #endif

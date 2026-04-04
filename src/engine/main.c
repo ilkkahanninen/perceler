@@ -15,7 +15,8 @@
 
 #include <stdio.h>
 
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
   TimelineEntry selected[17];
   TimelineStats stats;
   int have_selection;

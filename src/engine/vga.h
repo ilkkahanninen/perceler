@@ -15,7 +15,7 @@ void vga_exit(void);
 void vga_vsync(void);
 void vga_putpixel(int x, int y, unsigned char color);
 #define vga_clear(color) memset((void *)VGA_MEM, (color), VGA_SIZE)
-#define vga_blit(buf)    memcpy((void *)VGA_MEM, (buf), VGA_SIZE)
+#define vga_blit(buf) memcpy((void *)VGA_MEM, (buf), VGA_SIZE)
 void vga_setpalette(unsigned char index, unsigned char r, unsigned char g,
                     unsigned char b);
 

@@ -19,6 +19,15 @@
                 "__FLAT__",
                 "_WCRTLINK=",
                 "_WCIRTLINK=",
+                "_WCNORETURN=",
+                "_WCINTERRUPT=",
+                "_DOSFAR=",
+                "_WCFAR=",
+                "_WCNEAR=",
+                "_WCDATA=",
+                "_WMRTLINK=",
+                "_WRTLFCONV=",
+                "__declspec(x)=",
                 "__near=",
                 "__far=",
                 "__huge=",
@@ -28,7 +37,12 @@
                 "__loadds=",
                 "__saveregs=",
                 "__export=",
-                "__far16="
+                "__far16=",
+                "__cdecl=",
+                "__pragma(x)="
+            ],
+            "forcedInclude": [
+                "${workspaceFolder}/tools/watcom/h/conio.h"
             ],
             "intelliSenseMode": "gcc-x86",
             "cStandard": "c99"

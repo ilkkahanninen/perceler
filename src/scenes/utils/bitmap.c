@@ -21,11 +21,13 @@
 /* ------------------------------------------------------------------ */
 /* Little-endian helpers (memory buffer)                                */
 /* ------------------------------------------------------------------ */
-static unsigned short mem_u16(const unsigned char *p) {
+static unsigned short mem_u16(const unsigned char *p)
+{
   return (unsigned short)(p[0] | ((unsigned short)p[1] << 8));
 }
 
-static unsigned long mem_u32(const unsigned char *p) {
+static unsigned long mem_u32(const unsigned char *p)
+{
   return (unsigned long)p[0] | ((unsigned long)p[1] << 8) |
          ((unsigned long)p[2] << 16) | ((unsigned long)p[3] << 24);
 }
@@ -33,7 +35,8 @@ static unsigned long mem_u32(const unsigned char *p) {
 /* ------------------------------------------------------------------ */
 /* Core parser: works on a memory buffer                               */
 /* ------------------------------------------------------------------ */
-static Bitmap *bitmap_parse(const unsigned char *buf, unsigned long buf_len) {
+static Bitmap *bitmap_parse(const unsigned char *buf, unsigned long buf_len)
+{
   Bitmap *bmp;
   unsigned long pixel_offset;
   int width, height, stride, y, i;
@@ -75,13 +78,15 @@ static Bitmap *bitmap_parse(const unsigned char *buf, unsigned long buf_len) {
   bmp->width = width;
   bmp->height = height;
   bmp->pixels = (unsigned char *)malloc((unsigned)(width * height));
-  if (!bmp->pixels) {
+  if (!bmp->pixels)
+  {
     free(bmp);
     return 0;
   }
 
   /* Convert BGRA color table to 6-bit VGA RGB */
-  for (i = 0; i < 256; i++) {
+  for (i = 0; i < 256; i++)
+  {
     bmp->palette.entries[i][0] = ctab[i * 4 + 2] >> 2; /* R */
     bmp->palette.entries[i][1] = ctab[i * 4 + 1] >> 2; /* G */
     bmp->palette.entries[i][2] = ctab[i * 4 + 0] >> 2; /* B */
@@ -89,10 +94,12 @@ static Bitmap *bitmap_parse(const unsigned char *buf, unsigned long buf_len) {
 
   /* Pixel data: bottom-to-top, stride rounded up to 4 bytes */
   stride = (width + 3) & ~3;
-  for (y = height - 1; y >= 0; y--) {
+  for (y = height - 1; y >= 0; y--)
+  {
     unsigned long src_row =
         pixel_offset + (unsigned long)(height - 1 - y) * stride;
-    if (src_row + width > buf_len) {
+    if (src_row + width > buf_len)
+    {
       free(bmp->pixels);
       free(bmp);
       return 0;
@@ -106,7 +113,8 @@ static Bitmap *bitmap_parse(const unsigned char *buf, unsigned long buf_len) {
 /* ------------------------------------------------------------------ */
 /* Public API                                                           */
 /* ------------------------------------------------------------------ */
-Bitmap *bitmap_load(Asset asset) {
+Bitmap *bitmap_load(Asset asset)
+{
   unsigned char *buf;
   Bitmap *bmp;
 
@@ -119,7 +127,8 @@ Bitmap *bitmap_load(Asset asset) {
   return bmp;
 }
 
-void bitmap_blit(const Bitmap *bmp, int dx, int dy) {
+void bitmap_blit(const Bitmap *bmp, int dx, int dy)
+{
   volatile unsigned char *vga = VGA_MEM;
   int sx, sy;
 
@@ -137,11 +146,13 @@ void bitmap_blit(const Bitmap *bmp, int dx, int dy) {
   if (sx0 >= sx1 || sy0 >= sy1)
     return; /* fully off-screen */
 
-  for (sy = sy0; sy < sy1; sy++) {
+  for (sy = sy0; sy < sy1; sy++)
+  {
     const unsigned char *src = bmp->pixels + sy * bmp->width + sx0;
     volatile unsigned char *dst = vga + (dy + sy) * VGA_WIDTH + (dx + sx0);
 
-    for (sx = sx0; sx < sx1; sx++) {
+    for (sx = sx0; sx < sx1; sx++)
+    {
       if (*src != 0)
         *dst = *src;
       src++;
@@ -151,7 +162,8 @@ void bitmap_blit(const Bitmap *bmp, int dx, int dy) {
 }
 
 void bitmap_blit_to_buffer(const Bitmap *bmp, unsigned char *buf, int dst_w,
-                           int dst_h, int dx, int dy) {
+                           int dst_h, int dx, int dy)
+{
   int sx, sy;
   int sx0 = (dx < 0) ? -dx : 0;
   int sy0 = (dy < 0) ? -dy : 0;
@@ -166,11 +178,13 @@ void bitmap_blit_to_buffer(const Bitmap *bmp, unsigned char *buf, int dst_w,
   if (sx0 >= sx1 || sy0 >= sy1)
     return;
 
-  for (sy = sy0; sy < sy1; sy++) {
+  for (sy = sy0; sy < sy1; sy++)
+  {
     const unsigned char *src = bmp->pixels + sy * bmp->width + sx0;
     unsigned char *dst = buf + (dy + sy) * dst_w + (dx + sx0);
 
-    for (sx = sx0; sx < sx1; sx++) {
+    for (sx = sx0; sx < sx1; sx++)
+    {
       if (*src != 0)
         *dst = *src;
       src++;
@@ -179,7 +193,8 @@ void bitmap_blit_to_buffer(const Bitmap *bmp, unsigned char *buf, int dst_w,
   }
 }
 
-void bitmap_free(Bitmap *bmp) {
+void bitmap_free(Bitmap *bmp)
+{
   if (!bmp)
     return;
   free(bmp->pixels);

@@ -1,14 +1,16 @@
 #ifndef SCENE_H
 #define SCENE_H
 
-typedef struct {
+typedef struct
+{
   void (*setup)(void);
   void (*init)(unsigned char *backbuffer);
   void (*shutdown)(void);
   void (*render)(unsigned char *backbuffer, unsigned int frame);
 } Scene;
 
-typedef struct {
+typedef struct
+{
   const Scene *scene;
   unsigned long duration_ms;     /* 0 = run until ESC */
   unsigned long music_offset_ms; /* absolute position in the song */
@@ -33,7 +35,8 @@ int timeline_select(int argc, char *argv[], const TimelineEntry *source,
  * Terminate the array with { NULL, 0 }.
  * If loop is non-zero, restart from the beginning after the last scene.
  */
-typedef struct {
+typedef struct
+{
   unsigned long total_frames;
   unsigned long total_ms;
 } TimelineStats;

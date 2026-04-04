@@ -23,18 +23,23 @@ static volatile unsigned long ms_counter = 0;
 static volatile unsigned int chain_count = 0;
 static void(__interrupt __far *old_timer)(void);
 
-static void __interrupt __far timer_handler(void) {
+static void __interrupt __far timer_handler(void)
+{
   ms_counter++;
   chain_count++;
-  if (chain_count >= CHAIN_EVERY) {
+  if (chain_count >= CHAIN_EVERY)
+  {
     chain_count = 0;
     _chain_intr(old_timer);
-  } else {
+  }
+  else
+  {
     outp(PIC_CMD, PIC_EOI);
   }
 }
 
-void timer_init(void) {
+void timer_init(void)
+{
   ms_counter = 0;
   chain_count = 0;
   old_timer = _dos_getvect(TIMER_INT);
@@ -46,7 +51,8 @@ void timer_init(void) {
   _dos_setvect(TIMER_INT, timer_handler);
 }
 
-void timer_shutdown(void) {
+void timer_shutdown(void)
+{
   _dos_setvect(TIMER_INT, old_timer);
 
   /* Restore BIOS default: divisor 0 means 65536 = 18.2 Hz */
@@ -55,6 +61,7 @@ void timer_shutdown(void) {
   outp(PIT_CH0, 0);
 }
 
-unsigned long timer_ms(void) {
+unsigned long timer_ms(void)
+{
   return ms_counter;
 }
