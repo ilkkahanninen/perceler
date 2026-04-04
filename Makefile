@@ -100,6 +100,22 @@ release: all
 	cp $(BUILDDIR)/demo.exe $(RELEASEDIR)/
 	cp $(BUILDDIR)/demo.dat $(RELEASEDIR)/
 
+WATCH_DIRS := $(SRCDIR) assets $(ASSET_SRCDIR)
+WATCH_STAMP := $(BUILDDIR)/.watch_stamp
+
+watch: | $(BUILDDIR)
+	@echo "Watching for changes..."
+	@$(MAKE) --no-print-directory; touch $(WATCH_STAMP); \
+	while true; do \
+		sleep 1; \
+		if [ -n "$$(find $(WATCH_DIRS) Makefile -type f -newer $(WATCH_STAMP) 2>/dev/null | head -1)" ]; then \
+			echo ""; \
+			echo "Change detected, rebuilding..."; \
+			$(MAKE) --no-print-directory; \
+			touch $(WATCH_STAMP); \
+		fi; \
+	done
+
 clean:
 	rm -rf $(BUILDDIR) $(ASSET_HDR) *.err
 

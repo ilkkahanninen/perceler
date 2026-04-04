@@ -12,12 +12,21 @@
             "problemMatcher": []
         },
         {
+            "label": "Watch",
+            "type": "shell",
+            "command": "make",
+            "args": ["watch"],
+            "isBackground": true,
+            "runOptions": {
+                "runOn": "folderOpen"
+            },
+            "problemMatcher": []
+        },
+        {
             "label": "Run in DOSBox-X",
             "type": "shell",
             "command": "make",
-            "args": [
-                "run"
-            ],
+            "args": ["run"],
             "dependsOn": "Build",
             "problemMatcher": []
         }
