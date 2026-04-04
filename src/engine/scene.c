@@ -13,6 +13,7 @@
 #include "vga.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 int timeline_init(TimelineEntry *tl) {
   int n = 0;
@@ -45,6 +46,7 @@ void run_timeline(const TimelineEntry *timeline, int loop,
   unsigned long frames = 0;
   int number_of_scenes, current_scene_idx, need_init, need_seek;
   const TimelineEntry *current_scene;
+  unsigned char *backbuffer = (unsigned char *)malloc(VGA_SIZE);
 
   for (number_of_scenes = 0; timeline[number_of_scenes].scene != 0;
        number_of_scenes++)
@@ -66,7 +68,7 @@ void run_timeline(const TimelineEntry *timeline, int loop,
 
   while (!key_pressed(KEY_ESC)) {
     if (need_init) {
-      current_scene->scene->init();
+      current_scene->scene->init(backbuffer);
       need_init = 0;
     }
 
@@ -74,9 +76,9 @@ void run_timeline(const TimelineEntry *timeline, int loop,
 
     elapsed = timer_ms() - scene_start;
     current_scene->scene->render(
+        backbuffer,
         (unsigned int)((elapsed * 61) >> 10)); // ~ elapsed * 60 / 1000
 
-    vga_vsync();
     frames++;
 
     /* Jump to previous/next scene */
@@ -118,4 +120,6 @@ void run_timeline(const TimelineEntry *timeline, int loop,
   for (current_scene_idx = 0; current_scene_idx < number_of_scenes;
        current_scene_idx++)
     timeline[current_scene_idx].scene->shutdown();
+
+  free(backbuffer);
 }

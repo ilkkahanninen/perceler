@@ -39,19 +39,23 @@ cat > "$C_FILE" << EOF
 
 static void ${NAME}_setup(void) {}
 
-static void ${NAME}_init(void) {}
+static void ${NAME}_init(unsigned char *backbuffer) {
+  (void)backbuffer;
+}
 
 static void ${NAME}_shutdown(void) {}
 
-static void ${NAME}_render(unsigned char frame) {
-  volatile unsigned char *vga = VGA_MEM;
+static void ${NAME}_render(unsigned char *backbuffer, unsigned int frame) {
+  unsigned char *dst = backbuffer;
   int x, y;
 
   for (y = 0; y < VGA_HEIGHT; y++) {
     for (x = 0; x < VGA_WIDTH; x++) {
-      *vga++ = 0;
+      *dst++ = 0;
     }
   }
+  vga_vsync();
+  vga_blit(backbuffer);
 }
 
 const Scene ${NAME}_scene = {${NAME}_setup, ${NAME}_init, ${NAME}_shutdown,

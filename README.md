@@ -138,7 +138,8 @@ static void my_setup(void) {
   logo = bitmap_load(ASSET_LOGO_BMP);
 }
 
-static void my_init(void) {
+static void my_init(unsigned char *backbuffer) {
+  (void)backbuffer;
   palette_apply(&logo->palette);
 }
 
@@ -147,10 +148,12 @@ static void my_shutdown(void) {
   logo = NULL;
 }
 
-static void my_render(unsigned char frame) {
+static void my_render(unsigned char *backbuffer, unsigned int frame) {
   /* Color index 0 is transparent; clips automatically */
   bitmap_blit(logo, (VGA_WIDTH - logo->width) / 2,
               (VGA_HEIGHT - logo->height) / 2);
+  vga_vsync();
+  vga_blit(backbuffer);
 }
 ```
 

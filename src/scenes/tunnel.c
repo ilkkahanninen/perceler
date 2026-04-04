@@ -75,7 +75,10 @@ static void tunnel_setup(void) {
   generate_tables();
 }
 
-static void tunnel_init(void) { set_tunnel_palette(); }
+static void tunnel_init(unsigned char *backbuffer) {
+  (void)backbuffer;
+  set_tunnel_palette();
+}
 
 static void tunnel_shutdown(void) {
   free(angle_tab);
@@ -84,20 +87,22 @@ static void tunnel_shutdown(void) {
   dist_tab = 0;
 }
 
-static void tunnel_render(unsigned int frame) {
+static void tunnel_render(unsigned char *backbuffer, unsigned int frame) {
   int x, y;
   unsigned char shift_u = frame * 2;
   unsigned char shift_v = frame;
-  volatile unsigned char *vga = VGA_MEM;
+  unsigned char *dst = backbuffer;
 
   for (y = 0; y < VGA_HEIGHT; y++) {
     for (x = 0; x < VGA_WIDTH; x++) {
       int idx = y * VGA_WIDTH + x;
       unsigned char u = angle_tab[idx] + shift_u;
       unsigned char v = dist_tab[idx] + shift_v;
-      *vga++ = texture[v * TEX_SIZE + u];
+      *dst++ = texture[v * TEX_SIZE + u];
     }
   }
+  vga_vsync();
+  vga_blit(backbuffer);
 }
 
 const Scene tunnel_scene = {tunnel_setup, tunnel_init, tunnel_shutdown,
