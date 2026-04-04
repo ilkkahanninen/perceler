@@ -22,6 +22,12 @@ This will:
 - Download libxmp-lite 4.7.0 into `libs/libxmp-lite/`
 - Install DOSBox-X via Homebrew (macOS) or print instructions (Linux)
 
+## VSCode setup
+
+Install the recommended extensions when prompted, or manually install the **C/C++ Extension Pack** (`ms-vscode.cpptools-extension-pack`).
+
+IntelliSense is pre-configured in `.vscode/c_cpp_properties.json` with the correct include paths, Watcom-specific keyword shims, and target defines. It should work out of the box after running `./setup.sh`.
+
 ## Building
 
 ```sh

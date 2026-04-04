@@ -1,0 +1,38 @@
+{
+    "configurations": [
+        {
+            "name": "Open Watcom DOS32a",
+            "includePath": [
+                "${workspaceFolder}/src",
+                "${workspaceFolder}/src/engine",
+                "${workspaceFolder}/libs/libxmp-lite/include/libxmp-lite",
+                "${workspaceFolder}/libs/libxmp-lite/src",
+                "${workspaceFolder}/tools/watcom/h"
+            ],
+            "defines": [
+                "LIBXMP_CORE_PLAYER",
+                "LIBXMP_NO_PROWIZARD",
+                "__WATCOMC__=1300",
+                "__DOS__",
+                "__386__",
+                "_M_IX86=500",
+                "__FLAT__",
+                "_WCRTLINK=",
+                "_WCIRTLINK=",
+                "__near=",
+                "__far=",
+                "__huge=",
+                "__interrupt=",
+                "__fortran=",
+                "__watcall=",
+                "__loadds=",
+                "__saveregs=",
+                "__export=",
+                "__far16="
+            ],
+            "intelliSenseMode": "gcc-x86",
+            "cStandard": "c99"
+        }
+    ],
+    "version": 4
+}

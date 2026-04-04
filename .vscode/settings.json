@@ -1,3 +1,4 @@
 {
-  "makefile.configureOnOpen": false
+    "makefile.configureOnOpen": false,
+    "C_Cpp.intelliSenseEngine": "default"
 }
