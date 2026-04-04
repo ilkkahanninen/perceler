@@ -5,7 +5,7 @@ typedef struct {
   void (*setup)(void);
   void (*init)(void);
   void (*shutdown)(void);
-  void (*render)(unsigned char frame);
+  void (*render)(unsigned int frame);
 } Scene;
 
 typedef struct {

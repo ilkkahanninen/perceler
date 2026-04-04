@@ -84,7 +84,7 @@ static void tunnel_shutdown(void) {
   dist_tab = 0;
 }
 
-static void tunnel_render(unsigned char frame) {
+static void tunnel_render(unsigned int frame) {
   int x, y;
   unsigned char shift_u = frame * 2;
   unsigned char shift_v = frame;

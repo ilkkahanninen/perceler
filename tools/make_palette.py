@@ -22,14 +22,33 @@ import sys
 # Return a list of 256 (R, G, B) tuples, values 0-255.
 # ======================================================================
 def palette():
+    """Plasma palette matching src/scenes/plasma.c plasma_set_palette().
+    VGA DAC uses 6-bit (0-63) values; BMP uses 8-bit, so we scale by 4."""
     pal = [(0, 0, 0)] * 256
 
-    for i in range(16):
-        for j in range(16):
-            r = (i * 255) // 15
-            g = (j * 255) // 15
-            b = ((i + j) * 255) // 30
-            pal[i * 16 + j] = (r, g, b)
+    for i in range(128):
+        r = g = b = 0
+        if i < 32:
+            # Black to blue
+            b = i * 2
+        elif i < 64:
+            # Blue to red
+            b = (63 - i) * 2
+            r = (i - 32) * 2
+        elif i < 96:
+            # Red to yellow
+            r = 63
+            g = ((i - 64) * 2) >> 1
+        else:
+            # Yellow to black
+            r = g = (127 - i) * 2
+            g >>= 1
+        pal[i] = (r * 4, g * 4, b * 4)
+
+    # Greyscale (128-191)
+    for i in range(64):
+        c = i * 4
+        pal[128 + i] = (c, c, c)
 
     return pal
 
