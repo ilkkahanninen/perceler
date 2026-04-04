@@ -105,13 +105,32 @@ src/
   utils/              Shared engine utilities
     timing.h            XM_MS() macro: BPM/speed/rows to milliseconds
 assets/               Source asset files (BMP, XM)
+asset-sources/        PNG source images, converted to BMP during build
+  palette.bmp           Reference palette for PNG conversion
 tools/
   new_scene.sh          Generates boilerplate for a new scene
   pack_assets.py        Packs assets into demo.dat + generates assets.h
+  png2bmp.py            Converts PNG to 256-color indexed BMP
   make_palette.py       Generates palette preview BMP
 ```
 
 ## Adding new assets
+
+### From PNG sources
+
+Place a `.png` file in `asset-sources/`. During build, it is automatically converted to an 8-bit indexed BMP in `assets/` using the palette from `asset-sources/palette.bmp`. Transparent pixels (alpha < 128) are mapped to color index 0.
+
+If the output BMP already exists and no reference palette is given, `png2bmp.py` reuses the palette from the existing BMP. This lets you manually adjust the palette once and keep it across rebuilds.
+
+To convert manually with options:
+
+```sh
+python3 tools/png2bmp.py input.png output.bmp                    # auto-detect palette
+python3 tools/png2bmp.py input.png output.bmp -p mypalette.bmp   # custom palette
+python3 tools/png2bmp.py input.png output.bmp -t 200             # higher opacity threshold
+```
+
+### From BMP files directly
 
 1. Place the file in the `assets/` directory (e.g. `assets/logo.bmp`).
 

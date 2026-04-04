@@ -41,8 +41,14 @@ LIBXMP_LSRCS  := $(wildcard $(LIBXMP_DIR)/src/loaders/*.c)
 LIBXMP_OBJS   := $(patsubst $(LIBXMP_DIR)/src/%.c,$(BUILDDIR)/xmp_%.obj,$(LIBXMP_SRCS))
 LIBXMP_LOBJS  := $(patsubst $(LIBXMP_DIR)/src/loaders/%.c,$(BUILDDIR)/xmpl_%.obj,$(LIBXMP_LSRCS))
 
+# --- PNG to BMP conversion ---
+ASSET_SRCDIR  := asset-sources
+PNG_SOURCES   := $(wildcard $(ASSET_SRCDIR)/*.png)
+PNG_ASSETS    := $(patsubst $(ASSET_SRCDIR)/%.png,assets/%.bmp,$(PNG_SOURCES))
+PALETTE_BMP   := $(ASSET_SRCDIR)/palette.bmp
+
 # --- Asset packing ---
-ASSET_FILES := $(wildcard assets/*)
+ASSET_FILES := $(sort $(wildcard assets/*) $(PNG_ASSETS))
 ASSET_DAT   := $(BUILDDIR)/demo.dat
 ASSET_HDR   := $(SRCDIR)/assets.h
 
@@ -55,8 +61,11 @@ $(BUILDDIR):
 	mkdir -p $(BUILDDIR)
 
 # Pack assets and generate header (must run before compiling sources)
-$(ASSET_DAT) $(ASSET_HDR): $(ASSET_FILES) tools/pack_assets.py | $(BUILDDIR)
+$(ASSET_DAT) $(ASSET_HDR): $(ASSET_FILES) $(PNG_ASSETS) tools/pack_assets.py | $(BUILDDIR)
 	python3 tools/pack_assets.py $(BUILDDIR) $(SRCDIR) $(ASSET_FILES)
+
+assets/%.bmp: $(ASSET_SRCDIR)/%.png $(PALETTE_BMP) tools/png2bmp.py
+	python3 tools/png2bmp.py $< $@ -p $(PALETTE_BMP)
 
 assets: $(ASSET_DAT)
 
