@@ -95,20 +95,26 @@ src/
     scene.c/h           Scene system and timeline runner
     timer.c/h           PIT-based millisecond timer
   scenes/             Demo effects
+    model_viewer.c/h    Wireframe 3D model viewer with rotation
     plasma.c/h          Sine-based plasma effect
     tunnel.c/h          Textured tunnel flythrough
     utils/              Shared utilities for scenes
       bitmap.c/h          8-bit indexed BMP loader
-      dither.h            Ordered dithering threshold maps (8x8)
-      math.c/h            Precomputed sine table (256 entries, values 0-255)
+      dither.h            Ordered dithering threshold maps (8x8) and dither_threshold()
+      draw.c/h            Drawing primitives (Bresenham line)
+      math.c/h            Sine table, 8.8 fixed-point arithmetic, sin8/cos8
+      model.c/h           3D model loader (binary .mdl format)
       palette.c/h         Palette utilities (apply, lightness levels)
   utils/              Shared engine utilities
     timing.h            XM_MS() macro: BPM/speed/rows to milliseconds
-assets/               Source asset files (BMP, XM)
-asset-sources/        PNG source images, converted to BMP during build
+assets/               Source asset files (BMP, XM, MDL)
+asset-sources/        Source files, converted during build
   palette.bmp           Reference palette for PNG conversion
+  *.png                 PNG images, converted to 8-bit BMP
+  *.obj                 3D models, converted to binary .mdl
 tools/
   new_scene.sh          Generates boilerplate for a new scene
+  obj2model.py          Converts Wavefront .obj to binary .mdl format
   pack_assets.py        Packs assets into demo.dat + generates assets.h
   png2bmp.py            Converts PNG to 256-color indexed BMP
   make_palette.py       Generates palette preview BMP
@@ -128,6 +134,16 @@ To convert manually with options:
 python3 tools/png2bmp.py input.png output.bmp                    # auto-detect palette
 python3 tools/png2bmp.py input.png output.bmp -p mypalette.bmp   # custom palette
 python3 tools/png2bmp.py input.png output.bmp -t 200             # higher opacity threshold
+```
+
+### From OBJ models
+
+Place a `.obj` file in `asset-sources/`. During build, it is automatically converted to a binary `.mdl` file in `assets/` using `obj2model.py`. The converter triangulates faces (fan triangulation), computes per-face normals, and outputs all data in 8.8 fixed-point format.
+
+To convert manually:
+
+```sh
+python3 tools/obj2model.py input.obj output.mdl
 ```
 
 ### From BMP files directly
@@ -184,6 +200,54 @@ Key functions:
 | `palette_apply(&bmp->palette)` | Set all 256 VGA DAC entries from the bitmap's palette. |
 | `bitmap_blit(bmp, x, y)` | Draw bitmap at (x, y). Index 0 is transparent. Clips automatically. |
 | `bitmap_free(bmp)` | Free a loaded bitmap. |
+
+## Using 3D models
+
+Models are stored in a flat binary format with 8.8 fixed-point values. Per triangle: 9 ints for positions, 6 ints for UV coordinates, 3 ints for the face normal.
+
+```c
+#include "utils/model.h"
+#include "../assets.h"
+
+static Model *mdl;
+
+static void my_setup(void) {
+  mdl = model_load(ASSET_TEAPOT_MDL);
+}
+
+static void my_shutdown(void) {
+  model_free(mdl);
+  mdl = NULL;
+}
+```
+
+Key functions:
+
+| Function | Description |
+| --- | --- |
+| `model_load(asset)` | Load a binary `.mdl` from `demo.dat`. Returns `NULL` on error. |
+| `model_free(mdl)` | Free a loaded model. |
+
+### Fixed-point math
+
+8.8 fixed-point utilities are in `utils/math.h`:
+
+| Macro/Function | Description |
+| --- | --- |
+| `INT_TO_FP(x)` | Convert integer to 8.8 fixed-point |
+| `FP_TO_INT(x)` | Convert 8.8 fixed-point to integer (truncates) |
+| `FP_MUL(a, b)` | Multiply two 8.8 values |
+| `FP_DIV(a, b)` | Divide two 8.8 values |
+| `sin8(angle)` | Signed 8.8 sine (input 0-255 = 0-2pi) |
+| `cos8(angle)` | Signed 8.8 cosine |
+
+### Drawing primitives
+
+Line drawing is in `utils/draw.h`:
+
+| Function | Description |
+| --- | --- |
+| `draw_line(buf, x0, y0, x1, y1, color)` | Bresenham line with bounds clipping |
 
 ## Adding a new scene
 

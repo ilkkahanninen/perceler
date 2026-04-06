@@ -47,8 +47,12 @@ PNG_SOURCES   := $(wildcard $(ASSET_SRCDIR)/*.png)
 PNG_ASSETS    := $(patsubst $(ASSET_SRCDIR)/%.png,assets/%.bmp,$(PNG_SOURCES))
 PALETTE_BMP   := $(ASSET_SRCDIR)/palette.bmp
 
+# --- OBJ to MDL conversion ---
+OBJ_SOURCES   := $(wildcard $(ASSET_SRCDIR)/*.obj)
+OBJ_ASSETS    := $(patsubst $(ASSET_SRCDIR)/%.obj,assets/%.mdl,$(OBJ_SOURCES))
+
 # --- Asset packing ---
-ASSET_FILES := $(sort $(wildcard assets/*) $(PNG_ASSETS))
+ASSET_FILES := $(sort $(wildcard assets/*) $(PNG_ASSETS) $(OBJ_ASSETS))
 ASSET_DAT   := $(BUILDDIR)/demo.dat
 ASSET_HDR   := $(SRCDIR)/assets.h
 
@@ -66,6 +70,9 @@ $(ASSET_DAT) $(ASSET_HDR): $(ASSET_FILES) $(PNG_ASSETS) tools/pack_assets.py | $
 
 assets/%.bmp: $(ASSET_SRCDIR)/%.png $(PALETTE_BMP) tools/png2bmp.py
 	python3 tools/png2bmp.py $< $@ -p $(PALETTE_BMP)
+
+assets/%.mdl: $(ASSET_SRCDIR)/%.obj tools/obj2model.py
+	python3 tools/obj2model.py $< $@
 
 assets: $(ASSET_DAT)
 
