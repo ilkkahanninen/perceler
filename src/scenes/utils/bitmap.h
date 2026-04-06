@@ -9,6 +9,13 @@
  *
  * Pixels are stored top-to-bottom, left-to-right, one byte per pixel.
  * Palette entries are in VGA DAC range (0-63).
+ *
+ * Usage:
+ *   Bitmap *logo = bitmap_load(ASSET_LOGO_BMP);
+ *   palette_apply(&logo->palette);
+ *   bitmap_blit(logo, x, y);            // direct to VGA, index 0 transparent
+ *   bitmap_blit_to_buffer(logo, buf, w, h, x, y);  // to a backbuffer
+ *   bitmap_free(logo);
  */
 
 typedef struct

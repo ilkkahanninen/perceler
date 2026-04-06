@@ -6,7 +6,17 @@
  */
 extern const unsigned char sintab[256];
 
-/* --- 8.8 fixed-point arithmetic --- */
+/*
+ * 8.8 fixed-point arithmetic.
+ *
+ * Values represent signed numbers with 8 integer bits and 8 fractional bits.
+ * All multiply/divide intermediates fit in 32 bits for values up to ~±127.
+ *
+ * Usage:
+ *   int x = INT_TO_FP(3);           // 3.0
+ *   int y = FP_MUL(x, sin8(angle)); // 3.0 * sin(angle)
+ *   int px = FP_TO_INT(y);          // truncate to integer
+ */
 
 #define FP_SHIFT     8
 #define FP_ONE       (1 << FP_SHIFT)

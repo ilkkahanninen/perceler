@@ -122,132 +122,14 @@ tools/
 
 ## Adding new assets
 
-### From PNG sources
+Place source files in `asset-sources/` — they are converted automatically during build:
 
-Place a `.png` file in `asset-sources/`. During build, it is automatically converted to an 8-bit indexed BMP in `assets/` using the palette from `asset-sources/palette.bmp`. Transparent pixels (alpha < 128) are mapped to color index 0.
+- `.png` files are converted to 8-bit indexed BMP using the palette from `asset-sources/palette.bmp`
+- `.obj` files are converted to binary `.mdl` (8.8 fixed-point, fan-triangulated)
 
-If the output BMP already exists and no reference palette is given, `png2bmp.py` reuses the palette from the existing BMP. This lets you manually adjust the palette once and keep it across rebuilds.
+Files placed directly in `assets/` are packed as-is. All assets end up in `build/demo.dat`, and `src/assets.h` is regenerated with `ASSET_*` constants (filename uppercased, dots/hyphens become underscores).
 
-To convert manually with options:
-
-```sh
-python3 tools/png2bmp.py input.png output.bmp                    # auto-detect palette
-python3 tools/png2bmp.py input.png output.bmp -p mypalette.bmp   # custom palette
-python3 tools/png2bmp.py input.png output.bmp -t 200             # higher opacity threshold
-```
-
-### From OBJ models
-
-Place a `.obj` file in `asset-sources/`. During build, it is automatically converted to a binary `.mdl` file in `assets/` using `obj2model.py`. The converter triangulates faces (fan triangulation), computes per-face normals, and outputs all data in 8.8 fixed-point format.
-
-To convert manually:
-
-```sh
-python3 tools/obj2model.py input.obj output.mdl
-```
-
-### From BMP files directly
-
-1. Place the file in the `assets/` directory (e.g. `assets/logo.bmp`).
-
-2. Run `make assets` (or just `make`). All files in `assets/` are packed automatically into `build/demo.dat`, and `src/assets.h` is regenerated with an `Asset` constant for each file:
-
-```c
-// Generated automatically in src/assets.h
-static const Asset ASSET_LOGO_BMP = { 77878UL, 12345UL };
-```
-
-The constant name is the filename uppercased with dots and hyphens replaced by underscores, prefixed with `ASSET_`.
-
-## Using bitmaps
-
-Bitmaps must be 8-bit uncompressed BMP files (256-color indexed). The engine loads the embedded palette and converts it to VGA DAC range (0-63) automatically.
-
-```c
-#include "utils/bitmap.h"
-#include "../assets.h"
-
-static Bitmap *logo;
-
-static void my_setup(void) {
-  logo = bitmap_load(ASSET_LOGO_BMP);
-}
-
-static void my_init(unsigned char *backbuffer) {
-  (void)backbuffer;
-  palette_apply(&logo->palette);
-}
-
-static void my_shutdown(void) {
-  bitmap_free(logo);
-  logo = NULL;
-}
-
-static void my_render(unsigned char *backbuffer, unsigned int frame) {
-  /* Color index 0 is transparent; clips automatically */
-  bitmap_blit(logo, (VGA_WIDTH - logo->width) / 2,
-              (VGA_HEIGHT - logo->height) / 2);
-  vga_vsync();
-  vga_blit(backbuffer);
-}
-```
-
-Key functions:
-
-| Function | Description |
-| --- | --- |
-| `bitmap_load(asset)` | Load an 8-bit BMP from `demo.dat`. Returns `NULL` on error. |
-| `palette_apply(&bmp->palette)` | Set all 256 VGA DAC entries from the bitmap's palette. |
-| `bitmap_blit(bmp, x, y)` | Draw bitmap at (x, y). Index 0 is transparent. Clips automatically. |
-| `bitmap_free(bmp)` | Free a loaded bitmap. |
-
-## Using 3D models
-
-Models are stored in a flat binary format with 8.8 fixed-point values. Per triangle: 9 ints for positions, 6 ints for UV coordinates, 3 ints for the face normal.
-
-```c
-#include "utils/model.h"
-#include "../assets.h"
-
-static Model *mdl;
-
-static void my_setup(void) {
-  mdl = model_load(ASSET_TEAPOT_MDL);
-}
-
-static void my_shutdown(void) {
-  model_free(mdl);
-  mdl = NULL;
-}
-```
-
-Key functions:
-
-| Function | Description |
-| --- | --- |
-| `model_load(asset)` | Load a binary `.mdl` from `demo.dat`. Returns `NULL` on error. |
-| `model_free(mdl)` | Free a loaded model. |
-
-### Fixed-point math
-
-8.8 fixed-point utilities are in `utils/math.h`:
-
-| Macro/Function | Description |
-| --- | --- |
-| `INT_TO_FP(x)` | Convert integer to 8.8 fixed-point |
-| `FP_TO_INT(x)` | Convert 8.8 fixed-point to integer (truncates) |
-| `FP_MUL(a, b)` | Multiply two 8.8 values |
-| `FP_DIV(a, b)` | Divide two 8.8 values |
-| `sin8(angle)` | Signed 8.8 sine (input 0-255 = 0-2pi) |
-| `cos8(angle)` | Signed 8.8 cosine |
-
-### Drawing primitives
-
-Line drawing is in `utils/draw.h`:
-
-| Function | Description |
-| --- | --- |
-| `draw_line(buf, x0, y0, x1, y1, color)` | Bresenham line with bounds clipping |
+See header files for API usage: `bitmap.h`, `model.h`, `math.h`, `draw.h`.
 
 ## Adding a new scene
 

@@ -17,6 +17,13 @@
  *   - positions: 9 ints (x0,y0,z0, x1,y1,z1, x2,y2,z2) in 8.8 fp
  *   - uvs:       6 ints (u0,v0, u1,v1, u2,v2) in 8.8 fp
  *   - normals:   3 ints (nx, ny, nz) in 8.8 fp
+ *
+ * Convert from .obj with: python3 tools/obj2model.py input.obj output.mdl
+ *
+ * Usage:
+ *   Model *mdl = model_load(ASSET_TEAPOT_MDL);
+ *   // Access mdl->positions, mdl->uvs, mdl->normals, mdl->num_triangles
+ *   model_free(mdl);
  */
 
 typedef struct
