@@ -10,17 +10,27 @@
 
 #include <stdlib.h>
 #include <vga.h>
+#include "utils/dither.h"
 
 static Bitmap *image;
-static unsigned int image_x, image_y;
 static unsigned char *radial_tab;
+static unsigned char *overlay; /* full-screen bitmap layer; 0 = transparent */
+static unsigned char *dithering;
 
 static void plasma_setup(void)
 {
   int x, y;
+  unsigned int image_x, image_y;
+
   image = bitmap_load(ASSET_JML_BMP);
   image_x = (VGA_WIDTH - image->width) / 2;
   image_y = (VGA_HEIGHT - image->height) / 2;
+
+  /* Build full-screen overlay from the bitmap (0 = transparent / plasma) */
+  overlay = calloc(VGA_SIZE, 1);
+  bitmap_blit_to_buffer(image, overlay, VGA_WIDTH, VGA_HEIGHT, image_x,
+                        image_y);
+
   radial_tab = malloc(VGA_SIZE);
   for (y = 0; y < VGA_HEIGHT; y++)
   {
@@ -31,6 +41,9 @@ static void plasma_setup(void)
       radial_tab[y * VGA_WIDTH + x] = sintab[((cx * cy * 64) >> 8) & 0xFF] >> 2;
     }
   }
+
+  /* Dithering map */
+  dithering = calloc(VGA_SIZE, 1);
 }
 
 static void plasma_set_palette(void)
@@ -86,34 +99,45 @@ static void plasma_shutdown(void)
   image = NULL;
   free(radial_tab);
   radial_tab = NULL;
+  free(overlay);
+  overlay = NULL;
 }
 
 static void plasma_render(unsigned char *backbuffer, unsigned int frame)
 {
   int x, y;
   unsigned char *dst = backbuffer;
-  unsigned int f2 = frame * 3;
+  unsigned int f2 = frame + frame + frame;
   const unsigned char *rad = radial_tab;
+  const unsigned char *ovl = overlay;
 
   for (y = 0; y < VGA_HEIGHT; y++)
   {
     unsigned char sy1 = sintab[((y << 1) + frame) & 0xFF];
     unsigned char sy2 = sintab[((y * 5 + f2) >> 1) & 0xFF];
+    unsigned char t = (y + frame) & 0xFF;
+    unsigned char threshold = (t < 128) ? (t << 1) : ((255 - t) << 1);
 
     for (x = 0; x < VGA_WIDTH; x++)
     {
-      unsigned char v;
-      v = sintab[((x << 1) + frame) & 0xFF];
-      v += sy1;
-      v += sintab[((x + y + f2) >> 1) & 0xFF];
-      v += sy2;
-      v += *rad++;
-      *dst++ = v >> 1;
+      unsigned char bmp_pixel = *ovl++;
+      if (bmp_pixel != 0 && dither_threshold(dither_cluster8x8, x, y, threshold))
+      {
+        *dst++ = bmp_pixel;
+        rad++;
+      }
+      else
+      {
+        unsigned char v;
+        v = sintab[((x << 1) + frame) & 0xFF];
+        v += sy1;
+        v += sintab[((x + y + f2) >> 1) & 0xFF];
+        v += sy2;
+        v += *rad++;
+        *dst++ = v >> 1;
+      }
     }
   }
-
-  bitmap_blit_to_buffer(image, backbuffer, VGA_WIDTH, VGA_HEIGHT, image_x,
-                        image_y);
 
   vga_vsync();
   vga_blit(backbuffer);
