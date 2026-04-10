@@ -12,6 +12,7 @@
 
 void keyboard_init(void);
 void keyboard_shutdown(void);
+int key_down(unsigned char scancode);
 int key_pressed(unsigned char scancode);
 
 #endif
