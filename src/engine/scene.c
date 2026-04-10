@@ -71,7 +71,7 @@ void run_timeline(const TimelineEntry *timeline, int loop,
   audio_seek(current_scene->music_offset_ms);
   run_start = timer_ms();
 
-  while (!key_pressed(KEY_ESC))
+  while (!key_down(KEY_ESC))
   {
     if (need_init)
     {

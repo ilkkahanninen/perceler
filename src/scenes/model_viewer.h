@@ -4,5 +4,6 @@
 #include <scene.h>
 
 extern const Scene model_viewer_scene;
+extern const Scene model_viewer_flatshade_scene;
 
 #endif

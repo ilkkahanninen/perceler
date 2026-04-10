@@ -18,6 +18,14 @@ extern const unsigned char sintab[256];
  *   int px = FP_TO_INT(y);          // truncate to integer
  */
 
+#define SWAP(a, b) \
+  do                \
+  {                 \
+    int t_ = (a);   \
+    (a) = (b);      \
+    (b) = t_;       \
+  } while (0)
+
 #define FP_SHIFT     8
 #define FP_ONE       (1 << FP_SHIFT)
 #define FP_HALF      (1 << (FP_SHIFT - 1))
