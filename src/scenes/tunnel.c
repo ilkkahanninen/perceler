@@ -98,8 +98,10 @@ static void tunnel_shutdown(void)
   dist_tab = 0;
 }
 
-static void tunnel_render(unsigned char *backbuffer, unsigned int frame)
+static void tunnel_render(unsigned char *backbuffer, unsigned int frame,
+                          unsigned int timeline_frame)
 {
+  (void)timeline_frame;
   int x, y;
   unsigned char shift_u = frame * 2;
   unsigned char shift_v = frame;

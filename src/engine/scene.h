@@ -6,7 +6,8 @@ typedef struct
   void (*setup)(void);
   void (*init)(unsigned char *backbuffer);
   void (*shutdown)(void);
-  void (*render)(unsigned char *backbuffer, unsigned int frame);
+  void (*render)(unsigned char *backbuffer, unsigned int frame,
+                 unsigned int timeline_frame);
 } Scene;
 
 typedef struct

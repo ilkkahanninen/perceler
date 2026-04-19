@@ -146,6 +146,24 @@ python3 tools/xm_sample_frames.py assets/J9_THGHT.XM src/sync.h 8 16
 
 The generated header contains a `sample_N_frames[]` array and `SAMPLE_N_FRAMES_COUNT` define for each requested sample. The tool tracks XM speed/tempo changes for accurate timing.
 
+To react to triggers in a scene, use `SampleTrack` from `utils/timing.h`:
+
+```c
+#include "utils/timing.h"
+#include "sync.h" // generated header
+
+static SampleTrack kick = SAMPLE_TRACK(sample_8_frames, SAMPLE_8_FRAMES_COUNT);
+
+static void my_render(unsigned char *buf, unsigned int frame,
+                      unsigned int timeline_frame)
+{
+  if (sample_triggered(&kick, timeline_frame))
+    /* kick drum hit — flash, shake, etc. */;
+}
+```
+
+`sample_triggered()` returns 1 once per trigger when `timeline_frame` reaches the next entry in the array. The `timeline_frame` parameter passed to render functions corresponds to the absolute position in the full demo timeline, matching the frame numbers in the generated header.
+
 ## Adding a new scene
 
 Run the generator script to create the boilerplate:

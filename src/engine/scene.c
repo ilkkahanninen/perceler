@@ -84,7 +84,8 @@ void run_timeline(const TimelineEntry *timeline, int loop,
     elapsed = timer_ms() - scene_start;
     current_scene->scene->render(
         backbuffer,
-        (unsigned int)((elapsed * 61) >> 10)); // ~ elapsed * 60 / 1000
+        (unsigned int)((elapsed * 61) >> 10),
+        (unsigned int)(((current_scene->music_offset_ms + elapsed) * 61) >> 10));
 
     frames++;
 

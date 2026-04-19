@@ -103,8 +103,10 @@ static void plasma_shutdown(void)
   overlay = NULL;
 }
 
-static void plasma_render(unsigned char *backbuffer, unsigned int frame)
+static void plasma_render(unsigned char *backbuffer, unsigned int frame,
+                          unsigned int timeline_frame)
 {
+  (void)timeline_frame;
   int x, y;
   unsigned char *dst = backbuffer;
   unsigned int f2 = frame + frame + frame;
