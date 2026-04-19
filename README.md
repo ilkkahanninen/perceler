@@ -95,14 +95,14 @@ src/
     scene.c/h           Scene system and timeline runner
     timer.c/h           PIT-based millisecond timer
   scenes/             Demo effects
-    model_viewer.c/h    Wireframe 3D model viewer with rotation
+    model_viewer.c/h    Wireframe and flat-shaded 3D model viewer with rotation
     plasma.c/h          Sine-based plasma effect
     tunnel.c/h          Textured tunnel flythrough
     utils/              Shared utilities for scenes
       bitmap.c/h          8-bit indexed BMP loader
       dither.h            Ordered dithering threshold maps (8x8) and dither_threshold()
       draw.c/h            Drawing primitives (Bresenham line)
-      math.c/h            Sine table, 8.8 fixed-point arithmetic, sin8/cos8
+      math.c/h            Sine table, 8.8 fixed-point arithmetic, sin8/cos8, SWAP
       model.c/h           3D model loader (binary .mdl format)
       palette.c/h         Palette utilities (apply, lightness levels)
   utils/              Shared engine utilities
@@ -118,6 +118,7 @@ tools/
   pack_assets.py        Packs assets into demo.dat + generates assets.h
   png2bmp.py            Converts PNG to 256-color indexed BMP
   make_palette.py       Generates palette preview BMP
+  xm_sample_frames.py   Extracts sample trigger frame numbers from XM files
 ```
 
 ## Adding new assets
@@ -130,6 +131,20 @@ Place source files in `asset-sources/` — they are converted automatically duri
 Files placed directly in `assets/` are packed as-is. All assets end up in `build/demo.dat`, and `src/assets.h` is regenerated with `ASSET_*` constants (filename uppercased, dots/hyphens become underscores).
 
 See header files for API usage: `bitmap.h`, `model.h`, `math.h`, `draw.h`.
+
+## Syncing effects to music
+
+Use `xm_sample_frames.py` to extract frame numbers (at 60 fps) where specific samples are triggered in an XM file:
+
+```sh
+# List all instruments in the module
+python3 tools/xm_sample_frames.py assets/J9_THGHT.XM --list
+
+# Generate a C header with frame arrays for samples 8 and 16
+python3 tools/xm_sample_frames.py assets/J9_THGHT.XM src/sync.h 8 16
+```
+
+The generated header contains a `sample_N_frames[]` array and `SAMPLE_N_FRAMES_COUNT` define for each requested sample. The tool tracks XM speed/tempo changes for accurate timing.
 
 ## Adding a new scene
 
