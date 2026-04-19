@@ -106,12 +106,12 @@ static void plasma_shutdown(void)
 static void plasma_render(unsigned char *backbuffer, unsigned int frame,
                           unsigned int timeline_frame)
 {
-  (void)timeline_frame;
   int x, y;
   unsigned char *dst = backbuffer;
   unsigned int f2 = frame + frame + frame;
   const unsigned char *rad = radial_tab;
   const unsigned char *ovl = overlay;
+  (void)timeline_frame;
 
   for (y = 0; y < VGA_HEIGHT; y++)
   {

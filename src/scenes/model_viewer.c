@@ -131,8 +131,8 @@ static void model_viewer_wireframe_render(unsigned char *backbuffer,
                                           unsigned int frame,
                                           unsigned int timeline_frame)
 {
-  (void)timeline_frame;
   int i;
+  (void)timeline_frame;
 
   memset(backbuffer, 0, VGA_SIZE);
   transform_vertices(frame);
@@ -277,8 +277,8 @@ static void model_viewer_flatshade_render(unsigned char *backbuffer,
                                           unsigned int frame,
                                           unsigned int timeline_frame)
 {
-  (void)timeline_frame;
   int i;
+  (void)timeline_frame;
 
   memset(backbuffer, 0, VGA_SIZE);
   transform_vertices(frame);

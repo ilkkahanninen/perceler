@@ -101,11 +101,11 @@ static void tunnel_shutdown(void)
 static void tunnel_render(unsigned char *backbuffer, unsigned int frame,
                           unsigned int timeline_frame)
 {
-  (void)timeline_frame;
   int x, y;
   unsigned char shift_u = frame * 2;
   unsigned char shift_v = frame;
   unsigned char *dst = backbuffer;
+  (void)timeline_frame;
 
   for (y = 0; y < VGA_HEIGHT; y++)
   {
