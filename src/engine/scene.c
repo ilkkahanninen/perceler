@@ -15,6 +15,29 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define PROG_X 40
+#define PROG_Y 96
+#define PROG_W 240
+#define PROG_H 8
+
+static void draw_progress(int loaded, int total)
+{
+  int filled_w, y, x;
+  volatile unsigned char *row;
+
+  if (total <= 0)
+    return;
+
+  filled_w = (PROG_W * loaded) / total;
+
+  for (y = 0; y < PROG_H; y++)
+  {
+    row = VGA_MEM + (PROG_Y + y) * VGA_WIDTH + PROG_X;
+    for (x = 0; x < PROG_W; x++)
+      row[x] = (x < filled_w) ? 15 : 8;
+  }
+}
+
 int timeline_init(TimelineEntry *tl)
 {
   int n = 0;
@@ -44,12 +67,13 @@ int timeline_select(int argc, char *argv[], const TimelineEntry *source,
   return n;
 }
 
-void run_timeline(const TimelineEntry *timeline, int loop,
+void run_timeline(const TimelineEntry *timeline, Asset song, int loop,
                   TimelineStats *stats)
 {
   unsigned long scene_start, elapsed, run_start;
   unsigned long frames = 0;
   int number_of_scenes, current_scene_idx, need_init, need_seek;
+  int total_steps;
   const TimelineEntry *current_scene;
   unsigned char *backbuffer = (unsigned char *)malloc(VGA_SIZE);
 
@@ -59,9 +83,18 @@ void run_timeline(const TimelineEntry *timeline, int loop,
   if (number_of_scenes == 0)
     return;
 
+  total_steps = number_of_scenes + 1;
+  draw_progress(0, total_steps);
+
+  audio_load(song);
+  draw_progress(1, total_steps);
+
   for (current_scene_idx = 0; current_scene_idx < number_of_scenes;
        current_scene_idx++)
+  {
     timeline[current_scene_idx].scene->setup();
+    draw_progress(current_scene_idx + 2, total_steps);
+  }
 
   current_scene_idx = 0;
   need_init = 1;

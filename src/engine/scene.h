@@ -1,6 +1,8 @@
 #ifndef SCENE_H
 #define SCENE_H
 
+#include "../assets.h"
+
 typedef struct
 {
   void (*setup)(void);
@@ -42,6 +44,7 @@ typedef struct
   unsigned long total_ms;
 } TimelineStats;
 
-void run_timeline(const TimelineEntry *timeline, int loop, TimelineStats *stats);
+void run_timeline(const TimelineEntry *timeline, Asset song, int loop,
+                  TimelineStats *stats);
 
 #endif

@@ -26,7 +26,6 @@ int main(int argc, char *argv[])
   keyboard_init();
   timer_init();
   audio_init();
-  audio_load(DEMO_SONG);
 
   num_scenes = timeline_init(demo_timeline);
 
@@ -34,9 +33,9 @@ int main(int argc, char *argv[])
                                                num_scenes, selected, 16);
 
   if (have_selection)
-    run_timeline(selected, 1, &stats);
+    run_timeline(selected, DEMO_SONG, 1, &stats);
   else
-    run_timeline(demo_timeline, 0, &stats);
+    run_timeline(demo_timeline, DEMO_SONG, 0, &stats);
 
   audio_shutdown();
   timer_shutdown();
