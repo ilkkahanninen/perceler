@@ -7,6 +7,7 @@
 #include "../assets.h"
 #include "utils/bitmap.h"
 #include "utils/math.h"
+#include "utils/blur.h"
 
 #include <stdlib.h>
 #include <vga.h>
@@ -140,6 +141,8 @@ static void plasma_render(unsigned char *backbuffer, unsigned int frame,
       }
     }
   }
+
+  blur(backbuffer);
 
   vga_vsync();
   vga_blit(backbuffer);

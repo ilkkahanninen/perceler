@@ -77,7 +77,7 @@ make run DEMO_ARGS="0 1"
 | `make`         | Build everything                                           |
 | `make assets`  | Pack assets only (generates `demo.dat` and `src/assets.h`) |
 | `make run`     | Build and launch in DOSBox-X                               |
-| `make release` | Build and copy `demo.exe` + `demo.dat` to `release/`      |
+| `make release` | Build and copy `demo.exe` + `demo.dat` to `release/`       |
 | `make clean`   | Remove all build artifacts                                 |
 
 ## Project structure
@@ -87,26 +87,27 @@ src/
   demo.c/h            Demo definition: timeline and song
   engine/             Engine modules
     main.c              Entry point, engine init/shutdown, scene selection
-    audio.c/h           XM playback (libxmp-lite + SB16)
+    audio.c/h           XM playback
     data.c/h            Asset reader (reads from demo.dat)
-    keyboard.c/h        Interrupt-driven keyboard handler
+    keyboard.c/h        Keyboard handler
     vga.c/h             VGA Mode 13h 320x200 graphics
     sb16.c/h            Sound Blaster 16 DMA driver
     scene.c/h           Scene system and timeline runner
-    timer.c/h           PIT-based millisecond timer
+    timer.c/h           Millisecond timer
   scenes/             Demo effects
-    model_viewer.c/h    Wireframe and flat-shaded 3D model viewer with rotation
-    plasma.c/h          Sine-based plasma effect
-    tunnel.c/h          Textured tunnel flythrough
+    model_viewer.c/h    3D model viewer
+    plasma.c/h          Plasma effect
+    tunnel.c/h          Tunnel
     utils/              Shared utilities for scenes
       bitmap.c/h          8-bit indexed BMP loader
+      blur.c/h            Blur effects
       dither.h            Ordered dithering threshold maps (8x8) and dither_threshold()
-      draw.c/h            Drawing primitives (Bresenham line)
-      math.c/h            Sine table, 8.8 fixed-point arithmetic, sin8/cos8, SWAP
-      model.c/h           3D model loader (binary .mdl format)
-      palette.c/h         Palette utilities (apply, lightness levels)
+      draw.c/h            Drawing primitives
+      math.c/h            Sine table, 8.8 fixed-point arithmetic, sin8/cos8, SWAP etc.
+      model.c/h           3D model loader (custom format)
+      palette.c/h         Palette utilities
   utils/              Shared engine utilities
-    timing.h            XM_MS() macro: BPM/speed/rows to milliseconds
+    timing.h            BPM/speed/rows to milliseconds
 assets/               Source asset files (BMP, XM, MDL)
 asset-sources/        Source files, converted during build
   palette.bmp           Reference palette for PNG conversion
