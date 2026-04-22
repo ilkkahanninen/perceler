@@ -40,8 +40,10 @@ make --silent build/demo.dat
 # Compile with debug info.
 "$WATCOM_BIN/wcc386" $CFLAGS "-fo=$OBJ_DBG" "$SRC" > /dev/null
 
-# Disassemble with -a (assembleable, no hex) and -s= (interleave source).
-"$WATCOM_BIN/wdis" -a "-s=$SRC" "$OBJ_DBG" > "$OUT"
+# -a  : assembleable output (no address/byte columns)
+# -fi : use [base+disp] addressing instead of the old disp[base] notation
+# -s= : interleave source lines as comments
+"$WATCOM_BIN/wdis" -a -fi "-s=$SRC" "$OBJ_DBG" > "$OUT"
 
 if command -v code >/dev/null 2>&1; then
   code -r "$OUT"
