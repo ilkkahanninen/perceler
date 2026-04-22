@@ -9,6 +9,7 @@
 
 #include "audio.h"
 #include "keyboard.h"
+#include "utils/mem.h"
 #include "timer.h"
 #include "vga.h"
 
@@ -75,7 +76,8 @@ void run_timeline(const TimelineEntry *timeline, Asset song, int loop,
   int number_of_scenes, current_scene_idx, need_init, need_seek;
   int total_steps;
   const TimelineEntry *current_scene;
-  unsigned char *backbuffer = (unsigned char *)malloc(VGA_SIZE);
+  unsigned char *backbuffer =
+      (unsigned char *)mem_alloc_offset(VGA_SIZE, MEM_OFFSET_BACKBUFFER);
 
   for (number_of_scenes = 0; timeline[number_of_scenes].scene != 0;
        number_of_scenes++)
@@ -172,5 +174,5 @@ void run_timeline(const TimelineEntry *timeline, Asset song, int loop,
        current_scene_idx++)
     timeline[current_scene_idx].scene->shutdown();
 
-  free(backbuffer);
+  mem_free_aligned(backbuffer);
 }

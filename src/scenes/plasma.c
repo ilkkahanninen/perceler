@@ -6,17 +6,18 @@
 
 #include "../assets.h"
 #include "utils/bitmap.h"
-#include "utils/math.h"
 #include "utils/blur.h"
+#include "utils/dither.h"
+#include "utils/math.h"
+#include "utils/mem.h"
 
 #include <stdlib.h>
+#include <string.h>
 #include <vga.h>
-#include "utils/dither.h"
 
 static Bitmap *image;
 static unsigned char *radial_tab;
 static unsigned char *overlay; /* full-screen bitmap layer; 0 = transparent */
-static unsigned char *dithering;
 
 static void plasma_setup(void)
 {
@@ -27,12 +28,15 @@ static void plasma_setup(void)
   image_x = (VGA_WIDTH - image->width) / 2;
   image_y = (VGA_HEIGHT - image->height) / 2;
 
-  /* Build full-screen overlay from the bitmap (0 = transparent / plasma) */
-  overlay = calloc(VGA_SIZE, 1);
+  /* Stagger overlay and radial_tab into different cache sets from each
+   * other and from the backbuffer, so the lockstep reads in the render
+   * loop don't conflict-miss in a 2-way L1. */
+  overlay = mem_alloc_offset(VGA_SIZE, MEM_OFFSET_SCENE_0);
+  memset(overlay, 0, VGA_SIZE);
   bitmap_blit_to_buffer(image, overlay, VGA_WIDTH, VGA_HEIGHT, image_x,
                         image_y);
 
-  radial_tab = malloc(VGA_SIZE);
+  radial_tab = mem_alloc_offset(VGA_SIZE, MEM_OFFSET_SCENE_1);
   for (y = 0; y < VGA_HEIGHT; y++)
   {
     int cy = y - 100;
@@ -42,9 +46,6 @@ static void plasma_setup(void)
       radial_tab[y * VGA_WIDTH + x] = sintab[((cx * cy * 64) >> 8) & 0xFF] >> 2;
     }
   }
-
-  /* Dithering map */
-  dithering = calloc(VGA_SIZE, 1);
 }
 
 static void plasma_set_palette(void)
@@ -98,9 +99,9 @@ static void plasma_shutdown(void)
 {
   bitmap_free(image);
   image = NULL;
-  free(radial_tab);
+  mem_free_aligned(radial_tab);
   radial_tab = NULL;
-  free(overlay);
+  mem_free_aligned(overlay);
   overlay = NULL;
 }
 

@@ -106,8 +106,9 @@ src/
       math.c/h            Sine table, 8.8 fixed-point arithmetic, sin8/cos8, SWAP etc.
       model.c/h           3D model loader (custom format)
       palette.c/h         Palette utilities
-  utils/              Shared engine utilities
-    timing.h            BPM/speed/rows to milliseconds
+  utils/              Shared engine/scene utilities
+    mem.c/h             Cache-staggered aligned allocator, MEM_OFFSET_* slot system
+    timing.h            BPM/speed/rows to milliseconds, SampleTrack
 assets/               Source asset files (BMP, XM, MDL)
 asset-sources/        Source files, converted during build
   palette.bmp           Reference palette for PNG conversion
