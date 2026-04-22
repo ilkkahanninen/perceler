@@ -78,8 +78,13 @@ assets/%.mdl: $(ASSET_SRCDIR)/%.obj tools/obj2model.py
 
 assets: $(ASSET_DAT)
 
-# All object files depend on the generated asset header
-$(OBJS): $(ASSET_HDR)
+# Every object depends on every project header (over-approximated; avoids Watcom auto-dep).
+HDRS := $(wildcard $(SRCDIR)/*.h) \
+        $(wildcard $(SRCDIR)/engine/*.h) \
+        $(wildcard $(SRCDIR)/utils/*.h) \
+        $(wildcard $(SRCDIR)/scenes/*.h) \
+        $(wildcard $(SRCDIR)/scenes/utils/*.h)
+$(OBJS): $(ASSET_HDR) $(HDRS)
 
 $(BUILDDIR)/%.obj: $(SRCDIR)/%.c | $(BUILDDIR)
 	$(CC) $(CFLAGS) -fo=$@ $<
@@ -111,22 +116,6 @@ release: all
 	mkdir -p $(RELEASEDIR)
 	cp $(BUILDDIR)/demo.exe $(RELEASEDIR)/
 	cp $(BUILDDIR)/demo.dat $(RELEASEDIR)/
-
-WATCH_DIRS := $(SRCDIR) assets $(ASSET_SRCDIR)
-WATCH_STAMP := $(BUILDDIR)/.watch_stamp
-
-watch: | $(BUILDDIR)
-	@echo "Watching for changes..."
-	@$(MAKE) --no-print-directory; touch $(WATCH_STAMP); \
-	while true; do \
-		sleep 1; \
-		if [ -n "$$(find $(WATCH_DIRS) Makefile -type f -newer $(WATCH_STAMP) 2>/dev/null | head -1)" ]; then \
-			echo ""; \
-			echo "Change detected, rebuilding..."; \
-			$(MAKE) --no-print-directory; \
-			touch $(WATCH_STAMP); \
-		fi; \
-	done
 
 clean:
 	rm -rf $(BUILDDIR) $(ASSET_HDR) *.err
