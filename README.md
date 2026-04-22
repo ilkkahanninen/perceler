@@ -121,6 +121,7 @@ tools/
   png2bmp.py            Converts PNG to 256-color indexed BMP
   make_palette.py       Generates palette preview BMP
   xm_sample_frames.py   Extracts sample trigger frame numbers from XM files
+  wdis.sh               Disassembles the .obj for a given .c file, source-annotated
 ```
 
 ## Adding new assets
@@ -189,6 +190,36 @@ TimelineEntry demo_timeline[] = {
 ```
 
 New source files are picked up automatically by the Makefile.
+
+## Inspecting generated code
+
+`tools/wdis.sh` disassembles the object for a given `.c` file with source lines interleaved as comments, useful for checking how the compiler scheduled a hot loop or spotting missed optimizations.
+
+```sh
+tools/wdis.sh src/scenes/utils/blur.c
+```
+
+The script rebuilds the object with line-number debug info (`-d1`), runs `wdis -a` for clean assembleable output (no hex byte dump), writes the result to `build/<name>.disasm`, and opens it in VS Code via the `code` CLI.
+
+Inside VS Code there's also a task **Disassemble current file** (Cmd+Shift+P → Run Task). To get a split view with source on the left and disassembly on the right, add this to your personal `keybindings.json`:
+
+```json
+{
+  "key": "cmd+alt+d",
+  "command": "runCommands",
+  "args": {
+    "commands": [
+      "workbench.action.splitEditorRight",
+      {
+        "command": "workbench.action.tasks.runTask",
+        "args": "Disassemble current file"
+      }
+    ]
+  }
+}
+```
+
+Syntax highlighting for `.disasm` files is picked up automatically if you install the recommended extension `13xforever.language-x86-64-assembly`.
 
 ## License
 

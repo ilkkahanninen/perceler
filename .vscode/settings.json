@@ -1,4 +1,7 @@
 {
     "makefile.configureOnOpen": false,
-    "C_Cpp.intelliSenseEngine": "default"
+    "C_Cpp.intelliSenseEngine": "default",
+    "files.associations": {
+        "*.disasm": "asm-intel-x86-generic"
+    }
 }

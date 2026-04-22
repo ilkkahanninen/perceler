@@ -15,7 +15,9 @@
             "label": "Watch",
             "type": "shell",
             "command": "make",
-            "args": ["watch"],
+            "args": [
+                "watch"
+            ],
             "isBackground": true,
             "runOptions": {
                 "runOn": "folderOpen"
@@ -26,8 +28,25 @@
             "label": "Run in DOSBox-X",
             "type": "shell",
             "command": "make",
-            "args": ["run"],
+            "args": [
+                "run"
+            ],
             "dependsOn": "Build",
+            "problemMatcher": []
+        },
+        {
+            "label": "Disassemble current file",
+            "type": "shell",
+            "command": "./tools/wdis.sh",
+            "args": [
+                "${relativeFile}"
+            ],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "shared",
+                "clear": true,
+                "close": true
+            },
             "problemMatcher": []
         }
     ]

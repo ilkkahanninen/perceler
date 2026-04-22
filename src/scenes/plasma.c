@@ -110,7 +110,7 @@ static void plasma_render(unsigned char *backbuffer, unsigned int frame,
 {
   int x, y;
   unsigned char *dst = backbuffer;
-  unsigned int f2 = frame + frame + frame;
+  unsigned int f2 = frame * 3;
   const unsigned char *rad = radial_tab;
   const unsigned char *ovl = overlay;
   (void)timeline_frame;
