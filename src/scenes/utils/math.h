@@ -19,16 +19,16 @@ extern const unsigned char sintab[256];
  */
 
 #define SWAP(a, b) \
-  do                \
-  {                 \
-    int t_ = (a);   \
-    (a) = (b);      \
-    (b) = t_;       \
+  do               \
+  {                \
+    int t_ = (a);  \
+    (a) = (b);     \
+    (b) = t_;      \
   } while (0)
 
-#define FP_SHIFT     8
-#define FP_ONE       (1 << FP_SHIFT)
-#define FP_HALF      (1 << (FP_SHIFT - 1))
+#define FP_SHIFT 8
+#define FP_ONE (1 << FP_SHIFT)
+#define FP_HALF (1 << (FP_SHIFT - 1))
 #define INT_TO_FP(x) ((x) << FP_SHIFT)
 #define FP_TO_INT(x) ((x) >> FP_SHIFT)
 
@@ -51,6 +51,37 @@ static inline int sin8(unsigned char a)
 static inline int cos8(unsigned char a)
 {
   return sin8(a + 64);
+}
+
+/*
+ * Fast LCG pseudo-random generators.
+ *
+ * Usage:
+ *   unsigned int seed = 0x12345678;       // any non-zero starting state
+ *   unsigned char n  = rand8(&seed);      // 0..255
+ *   unsigned short s = rand16(&seed);     // 0..65535
+ *   unsigned int   r = rand32(&seed);     // full 32-bit
+ */
+
+#define LCG_MUL 1103515245u
+#define LCG_ADD 12345u
+
+static inline unsigned int rand32(unsigned int *seed)
+{
+  *seed = *seed * LCG_MUL + LCG_ADD;
+  return *seed;
+}
+
+static inline unsigned short rand16(unsigned int *seed)
+{
+  *seed = *seed * LCG_MUL + LCG_ADD;
+  return (unsigned short)(*seed >> 16);
+}
+
+static inline unsigned char rand8(unsigned int *seed)
+{
+  *seed = *seed * LCG_MUL + LCG_ADD;
+  return (unsigned char)(*seed >> 24);
 }
 
 #endif
