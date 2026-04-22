@@ -1,0 +1,127 @@
+#!/bin/bash
+# commit-msg hook: enforce the project's commit-prefix conventions.
+#
+# Accepts commits whose first line starts with one of:
+#   engine:  utils:  tools:  scene:  demo:  assets:
+#
+# Also verifies that the staged files belong to directories associated
+# with that prefix. Use `force <prefix>:` to bypass the path check.
+#
+# See README.md "Commit hook (optional)" for installation.
+
+set -e
+
+MSG_FILE="$1"
+MSG=$(grep -v '^#' "$MSG_FILE" | head -1)
+
+# Bypass automated messages.
+case "$MSG" in
+  "Merge "*|"Revert "*|"fixup! "*|"squash! "*) exit 0 ;;
+esac
+
+# Optional leading "force " disables the path check.
+CHECK_PATHS=1
+if [[ "$MSG" =~ ^force[[:space:]]+(.*)$ ]]; then
+  MSG="${BASH_REMATCH[1]}"
+  CHECK_PATHS=0
+fi
+
+# Extract and validate prefix.
+if [[ ! "$MSG" =~ ^([a-z]+):[[:space:]] ]]; then
+  cat >&2 <<'EOF'
+Commit rejected: message must start with a prefix.
+
+  engine:   src/engine/, Makefile
+  utils:    src/utils/, src/scenes/utils/
+  tools:    tools/, .vscode/, repo-root files (Makefile, setup.sh, etc.)
+  scene:    src/scenes/*.c, src/scenes/*.h (reusable scene changes)
+  demo:     src/scenes/*.c, src/scenes/*.h, src/demo.{c,h} (demo-specific)
+  assets:   assets/, asset-sources/
+
+Bypass path check:  force <prefix>: <subject>
+Uninstall hook:     git config --unset core.hooksPath
+EOF
+  exit 1
+fi
+
+TAG="${BASH_REMATCH[1]}"
+case "$TAG" in
+  engine|utils|tools|scene|demo|assets) ;;
+  *)
+    echo "Commit rejected: unknown prefix '$TAG:'" >&2
+    echo "Valid prefixes: engine, utils, tools, scene, demo, assets" >&2
+    exit 1
+    ;;
+esac
+
+# Force bypass skips the file-path check entirely.
+if [ "$CHECK_PATHS" = 0 ]; then
+  exit 0
+fi
+
+# Files always OK with any prefix (generated or repo-wide meta).
+is_always_allowed() {
+  case "$1" in
+    README.md|.gitignore|src/assets.h) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+# Is this file compatible with the claimed prefix?
+matches_prefix() {
+  local file="$1"
+  local tag="$2"
+  is_always_allowed "$file" && return 0
+
+  case "$tag" in
+    engine)
+      [[ "$file" == src/engine/* ]] || [[ "$file" == Makefile ]]
+      ;;
+    utils)
+      [[ "$file" == src/utils/* ]] || [[ "$file" == src/scenes/utils/* ]]
+      ;;
+    tools)
+      # tools/, .vscode/, or any file at repo root (no slash in path)
+      [[ "$file" == tools/* ]] || [[ "$file" == .vscode/* ]] \
+        || [[ "$file" != */* ]]
+      ;;
+    scene)
+      # Reusable scene code only — not demo-specific files, not utils.
+      [[ "$file" == src/scenes/*.c ]] || [[ "$file" == src/scenes/*.h ]] \
+        && [[ "$file" != src/scenes/utils/* ]]
+      ;;
+    demo)
+      [[ "$file" == src/scenes/*.c ]] || [[ "$file" == src/scenes/*.h ]] \
+        || [[ "$file" == src/demo.c ]] || [[ "$file" == src/demo.h ]]
+      ;;
+    assets)
+      [[ "$file" == assets/* ]] || [[ "$file" == asset-sources/* ]]
+      ;;
+  esac
+}
+
+# Collect mismatches from the staged files.
+BAD=()
+while IFS= read -r f; do
+  [ -z "$f" ] && continue
+  if ! matches_prefix "$f" "$TAG"; then
+    BAD+=("$f")
+  fi
+done < <(git diff --cached --name-only)
+
+if [ ${#BAD[@]} -gt 0 ]; then
+  echo "Commit rejected: prefix '$TAG:' doesn't match these files:" >&2
+  for f in "${BAD[@]}"; do
+    echo "  $f" >&2
+  done
+  cat >&2 <<EOF
+
+Options:
+  - Split the commit:    git reset HEAD~ && git add -p   (and re-commit)
+  - Use a different prefix
+  - Bypass path check:   force $TAG: <your message>
+EOF
+  exit 1
+fi
+
+exit 0

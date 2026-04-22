@@ -140,6 +140,31 @@ else
     esac
 fi
 
+# --- Optional: commit-msg hook ---
+if git rev-parse --git-dir >/dev/null 2>&1; then
+    if [ "$(git config --get core.hooksPath || true)" = "tools/hooks" ]; then
+        echo "Commit-msg hook already installed."
+    else
+        echo ""
+        echo "Install the commit-msg hook? It enforces the prefix convention"
+        echo "(engine:/utils:/tools:/scene:/demo:/assets:) and checks that staged"
+        echo "files match the prefix. Helpful when you want to later cherry-pick"
+        echo "reusable commits back to main. Skip if you're just hacking on a fork."
+        read -r -p "Install hook? [y/N] " REPLY
+        case "$REPLY" in
+            [yY]|[yY][eE][sS])
+                chmod +x tools/hooks/commit-msg
+                git config core.hooksPath tools/hooks
+                echo "Installed. Uninstall with: git config --unset core.hooksPath"
+                ;;
+            *)
+                echo "Skipped. Install later with:"
+                echo "  git config core.hooksPath tools/hooks"
+                ;;
+        esac
+    fi
+fi
+
 echo ""
 echo "=== Setup complete ==="
 echo ""
