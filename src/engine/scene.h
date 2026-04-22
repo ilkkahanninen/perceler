@@ -44,7 +44,7 @@ typedef struct
   unsigned long total_ms;
 } TimelineStats;
 
-void run_timeline(const TimelineEntry *timeline, Asset song, int loop,
+void run_timeline(const TimelineEntry *timeline, const Asset *song, int loop,
                   TimelineStats *stats);
 
 #endif

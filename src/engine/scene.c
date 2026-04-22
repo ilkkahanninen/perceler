@@ -68,7 +68,7 @@ int timeline_select(int argc, char *argv[], const TimelineEntry *source,
   return n;
 }
 
-void run_timeline(const TimelineEntry *timeline, Asset song, int loop,
+void run_timeline(const TimelineEntry *timeline, const Asset *song, int loop,
                   TimelineStats *stats)
 {
   unsigned long scene_start, elapsed, run_start;
@@ -88,7 +88,8 @@ void run_timeline(const TimelineEntry *timeline, Asset song, int loop,
   total_steps = number_of_scenes + 1;
   draw_progress(0, total_steps);
 
-  audio_load(song);
+  if (song)
+    audio_load(*song);
   draw_progress(1, total_steps);
 
   for (current_scene_idx = 0; current_scene_idx < number_of_scenes;
@@ -121,6 +122,8 @@ void run_timeline(const TimelineEntry *timeline, Asset song, int loop,
         backbuffer,
         (unsigned int)((elapsed * 61) >> 10),
         (unsigned int)(((current_scene->music_offset_ms + elapsed) * 61) >> 10));
+
+    audio_update();
 
     frames++;
 

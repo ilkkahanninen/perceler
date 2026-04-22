@@ -3,8 +3,8 @@
 #ifndef SB16_H
 #define SB16_H
 
-/* Half-buffer: 4096 stereo samples @ 44100 Hz ~= 93 ms per interrupt */
-#define SB16_RATE 44100
+/* Half-buffer: 4096 stereo samples @ 22050 Hz */
+#define SB16_RATE 22050
 #define SB16_HALF_SAMPLES 4096
 
 /* Return codes */
