@@ -191,6 +191,15 @@ TimelineEntry demo_timeline[] = {
 
 New source files are picked up automatically by the Makefile.
 
+The song is chosen by `demo_song()` in `src/demo.c`, which returns a pointer to an `Asset` from `src/assets.h`. Return `NULL` to run the demo silently.
+
+```c
+const Asset *demo_song(void)
+{
+  return &ASSET_J9_THGHT_XM;  /* or NULL for no music */
+}
+```
+
 ## Inspecting generated code
 
 `tools/wdis.sh` disassembles the object for a given `.c` file with source lines interleaved as comments, useful for checking how the compiler scheduled a hot loop or spotting missed optimizations.
