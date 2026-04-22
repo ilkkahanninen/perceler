@@ -49,9 +49,22 @@ void blur(unsigned char *buf)
   hblur_row(buf, prev);
   hblur_row(buf + VGA_WIDTH, curr);
 
-  /* First output row: no previous row above, weight curr by 3 */
-  for (x = 0; x < VGA_WIDTH; x++)
-    buf[x] = (unsigned char)((prev[x] * 3 + curr[x]) >> 2);
+  /* First output row: no previous row above, weight curr by 3.
+   * SWAR: (3p + c)/4 = p/2 + p/4 + c/4; max lane sum 127+63+63 = 253. */
+  {
+    const unsigned char *p = prev;
+    const unsigned char *c = curr;
+    unsigned char *d = buf;
+    for (x = VGA_WIDTH >> 2; x > 0; x--)
+    {
+      unsigned int pv = *(const unsigned int *)p;
+      unsigned int cv = *(const unsigned int *)c;
+      *(unsigned int *)d = ((pv >> 1) & 0x7F7F7F7FU) + ((pv >> 2) & 0x3F3F3F3FU) + ((cv >> 2) & 0x3F3F3F3FU);
+      d += 4;
+      p += 4;
+      c += 4;
+    }
+  }
 
   /* Middle rows: hblur row y+1 into 'next', then combine vertically.
    * Safe in place: buf[y*w..] is consumed before being overwritten. */
@@ -83,8 +96,20 @@ void blur(unsigned char *buf)
     next = swap;
   }
 
-  /* Last output row: no next row below, weight curr by 3 */
-  dst = buf + (VGA_HEIGHT - 1) * VGA_WIDTH;
-  for (x = 0; x < VGA_WIDTH; x++)
-    dst[x] = (unsigned char)((prev[x] + curr[x] * 3) >> 2);
+  /* Last output row: no next row below, weight curr by 3.
+   * SWAR: (p + 3c)/4 = p/4 + c/2 + c/4; max lane sum 63+127+63 = 253. */
+  {
+    const unsigned char *p = prev;
+    const unsigned char *c = curr;
+    unsigned char *d = buf + (VGA_HEIGHT - 1) * VGA_WIDTH;
+    for (x = VGA_WIDTH >> 2; x > 0; x--)
+    {
+      unsigned int pv = *(const unsigned int *)p;
+      unsigned int cv = *(const unsigned int *)c;
+      *(unsigned int *)d = ((pv >> 2) & 0x3F3F3F3FU) + ((cv >> 1) & 0x7F7F7F7FU) + ((cv >> 2) & 0x3F3F3F3FU);
+      d += 4;
+      p += 4;
+      c += 4;
+    }
+  }
 }
