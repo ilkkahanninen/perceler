@@ -7,6 +7,6 @@
 
 extern TimelineEntry demo_timeline[];
 
-#define DEMO_SONG ASSET_J9_THGHT_XM
+const Asset *demo_song(void);
 
 #endif

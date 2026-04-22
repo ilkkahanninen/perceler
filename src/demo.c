@@ -15,3 +15,8 @@ TimelineEntry demo_timeline[] = {
     {&plasma_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
     {&tunnel_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
     {0, 0, 0}};
+
+const Asset *demo_song(void)
+{
+  return &ASSET_J9_THGHT_XM;
+}
