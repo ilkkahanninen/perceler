@@ -152,6 +152,7 @@ src/
   scenes/             Demo effects
     model_viewer.c/h    3D model viewer
     plasma.c/h          Plasma effect
+    polyhedra.c/h       Rotating wireframe gallery of extruded Platonic solids
     tunnel.c/h          Tunnel
     utils/              Shared utilities for scenes
       bitmap.c/h          8-bit indexed BMP loader
@@ -162,6 +163,7 @@ src/
       math.c/h            Sine table, 8.8 fixed-point arithmetic, sin8/cos8, SWAP etc.
       model.c/h           3D model loader (custom format)
       palette.c/h         Palette utilities incl. fade to black/white/color and crossfade between two palettes
+      polyhedron.c/h      Procedural Platonic solids (tetra/cube/octa/icosa) with per-face extrusion
   utils/              Shared engine/scene utilities
     mem.c/h             Cache-staggered aligned allocator, MEM_OFFSET_* slot system
     timing.h            BPM/speed/rows to milliseconds, SampleTrack
@@ -221,7 +223,7 @@ Load it at runtime with `font_load(ASSET_MYSTYLE_FNT)` and pair with `font_free(
 
 Files placed directly in `assets/` are packed as-is. All assets end up in `build/demo.dat`, and `src/assets.h` is regenerated with `ASSET_*` constants (filename uppercased, dots/hyphens become underscores).
 
-See header files for API usage: `bitmap.h`, `model.h`, `math.h`, `draw.h`, `font.h`, `palette.h`, `tween.h`.
+See header files for API usage: `bitmap.h`, `model.h`, `math.h`, `draw.h`, `font.h`, `palette.h`, `polyhedron.h`, `tween.h`.
 
 ## Syncing effects to music
 
