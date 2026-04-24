@@ -3,10 +3,9 @@
 #ifndef GUS_H
 #define GUS_H
 
-/* Ring buffer: 4096 mono 8-bit samples per voice @ 22050 Hz = 186 ms full cycle.
- * The driver refills a half at a time (2048 samples = 93 ms per half) by polling
- * the voice play position from gus_update(). */
-#define GUS_RATE 22050
+/* Ring buffer: 4096 mono 8-bit samples per voice; duration scales inversely
+ * with audio_rate() (186 ms total at 22050 Hz). The driver refills a half at
+ * a time by polling the voice play position from gus_update(). */
 #define GUS_HALF_SAMPLES 2048
 
 /* Return codes */

@@ -12,8 +12,10 @@
 
 #include "sb16.h"
 
+#include "audio.h"
 #include "timer.h"
 
+#include <conio.h>
 #include <dos.h>
 #include <i86.h>
 #include <stdlib.h>
@@ -200,9 +202,12 @@ static unsigned long start_playback(void)
 
   dma5_program(g_phys, FULL_BYTES);
 
-  dsp_write(DSP_SET_OUT_RATE);
-  dsp_write((unsigned char)((SB16_RATE >> 8) & 0xFF));
-  dsp_write((unsigned char)(SB16_RATE & 0xFF));
+  {
+    unsigned int rate = audio_rate();
+    dsp_write(DSP_SET_OUT_RATE);
+    dsp_write((unsigned char)((rate >> 8) & 0xFF));
+    dsp_write((unsigned char)(rate & 0xFF));
+  }
   dsp_write(DSP_SPEAKER_ON);
   dsp_write(DSP_PLAY_16_AI);
   dsp_write(DSP_MODE_S16);

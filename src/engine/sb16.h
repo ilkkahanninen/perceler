@@ -3,8 +3,7 @@
 #ifndef SB16_H
 #define SB16_H
 
-/* Half-buffer: 4096 stereo samples @ 22050 Hz */
-#define SB16_RATE 22050
+/* Half-buffer: 4096 stereo samples (duration scales inversely with audio_rate()). */
 #define SB16_HALF_SAMPLES 4096
 
 /* Return codes */

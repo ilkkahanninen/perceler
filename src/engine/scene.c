@@ -198,7 +198,10 @@ static void run_timeline_offline(const TimelineEntry *timeline,
                                  int number_of_scenes,
                                  unsigned char *backbuffer)
 {
-  static short frame_audio[500 * 2]; /* stereo, max ~500 samples/frame */
+  /* Stereo short buffer sized for ~800 samples/frame, enough for any
+   * AUDIO_RATE up to 48 kHz sampled at 60 fps. */
+  static short frame_audio[800 * 2];
+  unsigned int rate = audio_rate();
   unsigned long frames = 0;
   unsigned long sample_acc = 0;
   unsigned long run_start;
@@ -233,9 +236,10 @@ static void run_timeline_offline(const TimelineEntry *timeline,
 
     capture_frame(backbuffer);
 
-    /* Audio chunk for this frame. Accumulator alternates 367/368 samples
-     * at 22050 Hz so 60 frames sum to exactly AUDIO_RATE. */
-    sample_acc += AUDIO_RATE;
+    /* Audio chunk for this frame. Accumulator splits `rate` evenly across
+     * 60 frames (e.g. 22050/60 = 367 or 368 alternating) so the cumulative
+     * sample count lands on rate × seconds exactly. */
+    sample_acc += rate;
     samples = (int)(sample_acc / 60UL);
     sample_acc -= (unsigned long)samples * 60UL;
     if (samples > (int)(sizeof(frame_audio) / sizeof(frame_audio[0]) / 2))

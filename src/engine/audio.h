@@ -5,9 +5,13 @@
 
 #include "../assets.h"
 
-/* Mix/output rate. Must match both SB16_RATE and GUS_RATE; audio.c
- * enforces this at compile time. */
-#define AUDIO_RATE 22050
+/*
+ * Effective output sample rate. Reads PERCELER_RATE from the environment
+ * the first time it is called, clamps it to the range supported by both
+ * drivers (4000..44100 Hz), and caches the result. Defaults to 22050 Hz
+ * when PERCELER_RATE is unset or invalid.
+ */
+unsigned int audio_rate(void);
 
 /*
  * Switch between real-time playback (default) and offline render mode.

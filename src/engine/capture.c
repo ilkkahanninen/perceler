@@ -9,7 +9,7 @@
 
 #include "capture.h"
 
-#include "audio.h" /* AUDIO_RATE */
+#include "audio.h" /* audio_rate() */
 #include "vga.h"
 
 #include <conio.h>
@@ -34,7 +34,8 @@ static void write_le32(unsigned char *p, unsigned long v)
 static void wav_write_header(FILE *f)
 {
   unsigned char h[44];
-  unsigned long byte_rate = (unsigned long)AUDIO_RATE * 4UL; /* stereo × 2 bytes */
+  unsigned long rate = (unsigned long)audio_rate();
+  unsigned long byte_rate = rate * 4UL; /* stereo × 2 bytes */
 
   memcpy(h, "RIFF", 4);
   write_le32(h + 4, 0);          /* file_size - 8, patched on close */
@@ -43,7 +44,7 @@ static void wav_write_header(FILE *f)
   write_le32(h + 16, 16);        /* fmt chunk payload size */
   h[20] = 1; h[21] = 0;          /* PCM */
   h[22] = 2; h[23] = 0;          /* stereo */
-  write_le32(h + 24, AUDIO_RATE);
+  write_le32(h + 24, rate);
   write_le32(h + 28, byte_rate);
   h[32] = 4; h[33] = 0;          /* block align = channels × sample bytes */
   h[34] = 16; h[35] = 0;         /* bits per sample */

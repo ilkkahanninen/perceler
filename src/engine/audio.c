@@ -20,14 +20,25 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if AUDIO_RATE != SB16_RATE
-#error "AUDIO_RATE must equal SB16_RATE"
-#endif
-#if AUDIO_RATE != GUS_RATE
-#error "AUDIO_RATE must equal GUS_RATE"
-#endif
-
 typedef void (*fill_fn_t)(short *buf, int samples);
+
+unsigned int audio_rate(void)
+{
+  static unsigned int cached = 0;
+  if (cached == 0)
+  {
+    const char *s = getenv("PERCELER_RATE");
+    unsigned int v = 22050;
+    if (s && *s)
+    {
+      long parsed = strtol(s, NULL, 10);
+      if (parsed >= 4000 && parsed <= 44100)
+        v = (unsigned int)parsed;
+    }
+    cached = v;
+  }
+  return cached;
+}
 
 typedef struct
 {
@@ -141,7 +152,7 @@ int audio_load(Asset asset, unsigned long start_ms)
   }
   free(buf);
 
-  if (xmp_start_player(g_ctx, AUDIO_RATE, 0) != 0)
+  if (xmp_start_player(g_ctx, (int)audio_rate(), 0) != 0)
   {
     xmp_release_module(g_ctx);
     return -1;

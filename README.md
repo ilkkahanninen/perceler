@@ -79,6 +79,15 @@ The engine picks an output driver at startup based on environment variables:
 
 To switch cards in DOSBox-X, toggle `gus=true` / `sbtype=sb16` in your `dosbox-x.conf`. DOSBox-X normally exports `ULTRASND` in the guest environment when GUS is enabled.
 
+The output sample rate is configurable at runtime via `PERCELER_RATE`:
+
+```
+set PERCELER_RATE=44100
+demo.exe
+```
+
+Accepted range is 4000-44100 Hz; invalid or unset values fall back to 22050. The rate is threaded through libxmp, the SB16 DSP, the GUS GF1 frequency register, and the capture WAV header, so everything stays consistent.
+
 ## Capturing video
 
 When `PERCELER_CAPTURE` is set in the DOS environment, the engine switches to a deterministic offline render: a virtual clock advances by exactly 1000/60 ms per frame, audio is rendered into a WAV file via libxmp (not the hardware driver), and the framebuffer is streamed to a companion `.RAW` file. Output speed depends on how fast DOSBox-X can emulate the frame — audio/video stay in lockstep regardless.

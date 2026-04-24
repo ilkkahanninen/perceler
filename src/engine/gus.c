@@ -47,6 +47,7 @@
 
 #include "gus.h"
 
+#include "audio.h"
 #include "timer.h"
 
 #include <conio.h>
@@ -407,10 +408,11 @@ static void voice_program(unsigned char v, unsigned long buf_addr, unsigned char
   gf1_write8(GF1_RAMP_CTRL, VC_STOPPED | VC_STOP_REQ);
   io_delay(10);
 
-  /* Frequency: at 14 active voices the base rate is ~44100 Hz; the
-   * register value = desired_rate * 1024 / base_rate, so for 22050 Hz
-   * we get 0x0200. Exact formula per DOSBox-X GF1 source. */
-  gf1_write16(GF1_FREQ, 0x0200);
+  /* Frequency: at 14 active voices the GF1 base rate is 44100 Hz. The
+   * register value is desired_rate * 1024 / base_rate (1024 = 1.0), so
+   * 22050 Hz → 0x0200, 44100 Hz → 0x0400. */
+  gf1_write16(GF1_FREQ,
+              (unsigned short)((unsigned long)audio_rate() * 1024UL / 44100UL));
 
   gf1_write16(GF1_START_HI, VOICE_ADDR_MSW(start));
   gf1_write16(GF1_START_LO, VOICE_ADDR_LSW(start));
