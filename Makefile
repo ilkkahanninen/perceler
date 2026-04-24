@@ -59,7 +59,7 @@ ASSET_DAT   := $(BUILDDIR)/demo.dat
 ASSET_HDR   := $(SRCDIR)/assets.h
 
 # --- Rules ---
-.PHONY: all clean run assets
+.PHONY: all clean run assets capture
 
 all: $(TARGET) $(ASSET_DAT)
 
@@ -129,3 +129,17 @@ ifdef DEMO_ARGS
 else
 	dosbox-x -conf dosbox-x.conf
 endif
+
+# --- Capture end-to-end: run the demo in offline-render mode, then encode ---
+# Override CAPTURE_PREFIX to change the 8.3 DOS stem that CAPTURE.DAT and
+# CAPTURE.WAV are written under; CAPTURE_OUT is the final MP4 on the host.
+CAPTURE_PREFIX ?= CAPTURE
+CAPTURE_OUT    ?= $(BUILDDIR)/demo.mp4
+
+capture: all
+	@echo "[capture] running demo in offline-render mode..."
+	@awk '/^demo\.exe/ { print "set PERCELER_CAPTURE=$(CAPTURE_PREFIX)"; print; next } /^pause$$/ { next } { print }' dosbox-x.conf > $(BUILDDIR)/dosbox-capture.conf
+	dosbox-x -conf $(BUILDDIR)/dosbox-capture.conf
+	@echo "[capture] encoding $(CAPTURE_OUT)..."
+	python3 tools/capture2video.py --scale 3 $(BUILDDIR)/$(CAPTURE_PREFIX) $(CAPTURE_OUT)
+	@echo "[capture] done: $(CAPTURE_OUT)"

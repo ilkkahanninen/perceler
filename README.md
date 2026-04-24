@@ -79,6 +79,40 @@ The engine picks an output driver at startup based on environment variables:
 
 To switch cards in DOSBox-X, toggle `gus=true` / `sbtype=sb16` in your `dosbox-x.conf`. DOSBox-X normally exports `ULTRASND` in the guest environment when GUS is enabled.
 
+## Capturing video
+
+When `PERCELER_CAPTURE` is set in the DOS environment, the engine switches to a deterministic offline render: a virtual clock advances by exactly 1000/60 ms per frame, audio is rendered into a WAV file via libxmp (not the hardware driver), and the framebuffer is streamed to a companion `.RAW` file. Output speed depends on how fast DOSBox-X can emulate the frame — audio/video stay in lockstep regardless.
+
+Run the whole pipeline (build → capture → encode) with:
+
+```sh
+make capture
+```
+
+That generates a temporary DOSBox-X config with `set PERCELER_CAPTURE=CAPTURE` prepended before `demo.exe`, runs it, then feeds the resulting `build/CAPTURE.RAW` + `build/CAPTURE.WAV` to [tools/capture2video.py](tools/capture2video.py) to produce `build/demo.mp4`. Requires `ffmpeg` on PATH.
+
+Override the output path or the 8.3 DOS stem if needed:
+
+```sh
+make capture CAPTURE_OUT=trailer.mp4
+make capture CAPTURE_PREFIX=TAKE2 CAPTURE_OUT=take2.mp4
+```
+
+For a manual run without `make`, add to the `[autoexec]` section of `dosbox-x.conf`:
+
+```
+set PERCELER_CAPTURE=CAPTURE
+demo.exe
+```
+
+Then encode directly:
+
+```sh
+python3 tools/capture2video.py --scale 3 build/CAPTURE build/demo.mp4
+```
+
+Scene navigation (left/right arrows) is disabled during capture so the output is always reproducible. ESC still aborts.
+
 ## Make targets
 
 | Target         | Description                                                |
@@ -86,6 +120,7 @@ To switch cards in DOSBox-X, toggle `gus=true` / `sbtype=sb16` in your `dosbox-x
 | `make`         | Build everything                                           |
 | `make assets`  | Pack assets only (generates `demo.dat` and `src/assets.h`) |
 | `make run`     | Build and launch in DOSBox-X                               |
+| `make capture` | Build, render a deterministic capture, encode to `build/demo.mp4` |
 | `make release` | Build and copy `demo.exe` + `demo.dat` to `release/`       |
 | `make clean`   | Remove all build artifacts                                 |
 
@@ -102,6 +137,7 @@ src/
     vga.c/h             VGA Mode 13h 320x200 graphics
     sb16.c/h            Sound Blaster 16 DMA driver
     gus.c/h             Gravis Ultrasound (GF1) driver, stereo 8-bit via DRAM DMA
+    capture.c/h         Offline-render sink (video .RAW + audio .WAV) for video export
     scene.c/h           Scene system and timeline runner
     timer.c/h           Millisecond timer
   scenes/             Demo effects
@@ -134,6 +170,7 @@ tools/
   png2bmp.py            Converts PNG to 256-color indexed BMP
   make_palette.py       Generates palette preview BMP
   font.py               Creates font-drawing templates and compiles them to .fnt assets
+  capture2video.py      Encodes a Perceler capture (.RAW + .WAV) to MP4 via ffmpeg
   xm_sample_frames.py   Extracts sample trigger frame numbers from XM files
   wdis.sh               Disassembles the .obj for a given .c file, source-annotated
 ```
