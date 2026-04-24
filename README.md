@@ -113,6 +113,7 @@ src/
       blur.c/h            Blur effects
       dither.h            Ordered dithering threshold maps (8x8) and dither_threshold()
       draw.c/h            Drawing primitives
+      font.c/h            Bitmap text renderer; arbitrary width×height glyphs, built-in 8x8 font
       math.c/h            Sine table, 8.8 fixed-point arithmetic, sin8/cos8, SWAP etc.
       model.c/h           3D model loader (custom format)
       palette.c/h         Palette utilities
@@ -131,6 +132,7 @@ tools/
   pack_assets.py        Packs assets into demo.dat + generates assets.h
   png2bmp.py            Converts PNG to 256-color indexed BMP
   make_palette.py       Generates palette preview BMP
+  font.py               Creates font-drawing templates and compiles them to .fnt assets
   xm_sample_frames.py   Extracts sample trigger frame numbers from XM files
   wdis.sh               Disassembles the .obj for a given .c file, source-annotated
 ```
@@ -150,9 +152,29 @@ python3 tools/3ds2model.py asset-sources/scene.3ds assets/
 
 That writes one file per mesh, named `<input_stem>_<mesh_name>.mdl`.
 
+### Custom fonts
+
+The engine ships with a built-in 8x8 font (`font_default`). For custom styles, use `tools/font.py` to generate a drawing template, paint the glyphs in a pixel editor, then compile to a `.fnt` asset:
+
+```sh
+# 1. Generate an empty template (any multiple-of-8 width, any height)
+python3 tools/font.py template --width 16 --height 16 mystyle.bmp
+
+# 2. Open mystyle.bmp in a pixel editor and paint each glyph canvas using
+#    palette index 1 (white). The gray borders/labels/reference glyphs are
+#    ignored by the next step.
+
+# 3. Compile to .fnt and drop into assets/
+python3 tools/font.py build --width 16 --height 16 mystyle.bmp assets/mystyle.fnt
+```
+
+Load it at runtime with `font_load(ASSET_MYSTYLE_FNT)` and pair with `font_free()`.
+
+### Packing
+
 Files placed directly in `assets/` are packed as-is. All assets end up in `build/demo.dat`, and `src/assets.h` is regenerated with `ASSET_*` constants (filename uppercased, dots/hyphens become underscores).
 
-See header files for API usage: `bitmap.h`, `model.h`, `math.h`, `draw.h`.
+See header files for API usage: `bitmap.h`, `model.h`, `math.h`, `draw.h`, `font.h`.
 
 ## Syncing effects to music
 
