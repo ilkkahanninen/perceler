@@ -26,4 +26,20 @@ void palette_apply(const Palette *pal);
  */
 void palette_calc_levels(PaletteLevels *dst, const Palette *src);
 
+/*
+ * Linear crossfade between two palettes: dst = a + (b - a) * t / 256.
+ * t is a fixed-point fade factor: 0 → full a, 256 → full b. Values outside
+ * [0, 256] are clamped. `dst` may alias either `a` or `b`.
+ */
+void palette_lerp(Palette *dst, const Palette *a, const Palette *b, int t);
+
+/*
+ * Fade a palette toward a solid VGA-range color (0-63 per channel).
+ * t is a fixed-point fade factor: 0 → full src, 256 → solid (r, g, b).
+ * Common uses: fade to black (r=g=b=0), fade to white (r=g=b=63), flash
+ * effect to arbitrary color.
+ */
+void palette_fade(Palette *dst, const Palette *src,
+                  unsigned char r, unsigned char g, unsigned char b, int t);
+
 #endif
