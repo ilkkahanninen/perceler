@@ -11,6 +11,7 @@
 #include <math.h>
 #include <vga.h>
 #include <stdlib.h>
+#include "utils/font.h"
 
 #define TEX_SIZE 256
 #define CX (VGA_WIDTH / 2)
@@ -117,6 +118,9 @@ static void tunnel_render(unsigned char *backbuffer, unsigned int frame,
       *dst++ = texture[v * TEX_SIZE + u];
     }
   }
+
+  font_draw(&font_default, backbuffer, 4, 4, 255, "tunnel.c");
+
   vga_vsync();
   vga_blit(backbuffer);
 }

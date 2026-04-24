@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vga.h>
+#include "utils/font.h"
 
 static Bitmap *image;
 static unsigned char *radial_tab;
@@ -144,6 +145,8 @@ static void plasma_render(unsigned char *backbuffer, unsigned int frame,
   }
 
   blur(backbuffer);
+
+  font_draw(&font_default, backbuffer, 4, 4, 255, "plasma.c");
 
   vga_vsync();
   vga_blit(backbuffer);

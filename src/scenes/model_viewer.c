@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vga.h>
+#include "utils/font.h"
 
 #define CAM_Z INT_TO_FP(6)
 #define NEAR_Z (FP_ONE >> 2)
@@ -179,6 +180,8 @@ static void model_viewer_wireframe_render(unsigned char *backbuffer,
     draw_line(backbuffer, sx1, sy1, sx2, sy2, 255);
     draw_line(backbuffer, sx2, sy2, sx0, sy0, 255);
   }
+
+  font_draw(&font_default, backbuffer, 4, 4, 255, "model_viewer.c - Wireframe");
 
   vga_vsync();
   vga_blit(backbuffer);
@@ -370,6 +373,8 @@ static void model_viewer_flatshade_render(unsigned char *backbuffer,
                     sx0, sy0, v[2], sx1, sy1, v[5], sx2, sy2, v[8],
                     (unsigned char)dot);
   }
+
+  font_draw(&font_default, backbuffer, 4, 4, 255, "model_viewer.c - Flat-shaded");
 
   vga_vsync();
   vga_blit(backbuffer);
