@@ -117,6 +117,7 @@ asset-sources/        Source files, converted during build
 tools/
   new_scene.sh          Generates boilerplate for a new scene
   obj2model.py          Converts Wavefront .obj to binary .mdl format
+  3ds2model.py          Converts Autodesk .3ds to .mdl (one file per mesh)
   pack_assets.py        Packs assets into demo.dat + generates assets.h
   png2bmp.py            Converts PNG to 256-color indexed BMP
   make_palette.py       Generates palette preview BMP
@@ -130,6 +131,14 @@ Place source files in `asset-sources/` — they are converted automatically duri
 
 - `.png` files are converted to 8-bit indexed BMP using the palette from `asset-sources/palette.bmp`
 - `.obj` files are converted to binary `.mdl` (8.8 fixed-point, fan-triangulated)
+
+Autodesk `.3ds` files are not auto-wired into the build because a single `.3ds` can produce many `.mdl` outputs (one per mesh). Run the converter manually and drop the results into `assets/`:
+
+```sh
+python3 tools/3ds2model.py asset-sources/scene.3ds assets/
+```
+
+That writes one file per mesh, named `<input_stem>_<mesh_name>.mdl`.
 
 Files placed directly in `assets/` are packed as-is. All assets end up in `build/demo.dat`, and `src/assets.h` is regenerated with `ASSET_*` constants (filename uppercased, dots/hyphens become underscores).
 
