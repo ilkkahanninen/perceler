@@ -1,32 +1,37 @@
-/* audio.h - XM playback via libxmp-lite + SB16 */
+/* audio.h - XM playback via libxmp-lite, dispatched to SB16 or GUS */
 
 #ifndef AUDIO_H
 #define AUDIO_H
 
 #include "../assets.h"
-#include "sb16.h"
+
+/* Mix/output rate. Must match both SB16_RATE and GUS_RATE; audio.c
+ * enforces this at compile time. */
+#define AUDIO_RATE 22050
 
 /*
- * Initialize SB16 audio output.
- * Returns 0 on success, negative on error.
+ * Initialize the audio subsystem. Picks a driver at runtime: if the
+ * ULTRASND environment variable is set, the GUS driver is attempted
+ * first; on failure (or if ULTRASND is absent), the SB16 driver is
+ * used. Returns 0 on success, negative on error.
  */
 int audio_init(void);
 
 /*
  * Load and start playing an XM module from the packed data file, seeked to
- * start_ms. The DMA buffer is flushed and primed with fresh audio so that
+ * start_ms. The output ring is flushed and primed with fresh audio so that
  * music at position start_ms becomes audible with no queued-buffer latency.
  * Returns 0 on success, negative on error.
  */
 int audio_load(Asset asset, unsigned long start_ms);
 
 /*
- * Must be called once per main-loop iteration to fill the audio buffer.
+ * Must be called once per main-loop iteration to refill the output buffer.
  */
-#define audio_update() sb16_update()
+void audio_update(void);
 
 /*
- * Seek to a position in the currently playing module. Flushes the DMA
+ * Seek to a position in the currently playing module. Flushes the output
  * buffer so music at ms becomes audible immediately.
  */
 void audio_seek(unsigned long ms);

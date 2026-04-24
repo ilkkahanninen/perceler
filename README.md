@@ -1,6 +1,6 @@
 # Perceler
 
-A demo engine for DOS featuring real-time effects running in VGA Mode 13h (320x200x256), with XM module playback through Sound Blaster 16. Cross-compiled from macOS/Linux using Open Watcom V2, runs in DOSBox-X.
+A demo engine for DOS featuring real-time effects running in VGA Mode 13h (320x200x256), with XM module playback through Sound Blaster 16 or Gravis Ultrasound. Cross-compiled from macOS/Linux using Open Watcom V2, runs in DOSBox-X.
 
 ## Prerequisites
 
@@ -70,6 +70,15 @@ make run DEMO_ARGS="0 1"
 | Left arrow  | Jump to previous scene |
 | Right arrow | Jump to next scene     |
 
+## Sound card selection
+
+The engine picks an output driver at startup based on environment variables:
+
+- If `ULTRASND` is set, the Gravis Ultrasound driver is tried first (stereo, 8-bit per channel, streamed to GF1 onboard RAM via DMA).
+- Otherwise — or if GUS init fails — the Sound Blaster 16 driver is used (stereo, 16-bit, DMA channel 5; reads `BLASTER` for base/IRQ).
+
+To switch cards in DOSBox-X, toggle `gus=true` / `sbtype=sb16` in your `dosbox-x.conf`. DOSBox-X normally exports `ULTRASND` in the guest environment when GUS is enabled.
+
 ## Make targets
 
 | Target         | Description                                                |
@@ -87,11 +96,12 @@ src/
   demo.c/h            Demo definition: timeline and song
   engine/             Engine modules
     main.c              Entry point, engine init/shutdown, scene selection
-    audio.c/h           XM playback
+    audio.c/h           XM playback; dispatches to SB16 or GUS at runtime
     data.c/h            Asset reader (reads from demo.dat)
     keyboard.c/h        Keyboard handler
     vga.c/h             VGA Mode 13h 320x200 graphics
     sb16.c/h            Sound Blaster 16 DMA driver
+    gus.c/h             Gravis Ultrasound (GF1) driver, stereo 8-bit via DRAM DMA
     scene.c/h           Scene system and timeline runner
     timer.c/h           Millisecond timer
   scenes/             Demo effects

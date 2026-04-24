@@ -1,14 +1,18 @@
 /*
- * audio.c - XM playback using libxmp-lite rendered into the SB16 DMA buffer.
+ * audio.c - XM playback using libxmp-lite, dispatched to SB16 or GUS.
  *
- * The SB16 driver fires an interrupt every SB16_HALF_SAMPLES stereo samples
- * and sets a flag.  audio_update() checks the flag and calls xmp_play_buffer()
- * to fill the inactive half of the DMA buffer with the next decoded PCM chunk.
+ * At init time, the ULTRASND environment variable is checked. If present,
+ * the GUS driver is attempted first; on failure (or if ULTRASND is absent)
+ * the SB16 driver is used. Both drivers expose an identically-shaped fill
+ * callback, so libxmp renders the same stereo-16 interleaved buffer in
+ * either case — format conversion and any downmixing happens inside the
+ * driver.
  */
 
 #include "audio.h"
 
 #include "data.h"
+#include "gus.h"
 #include "sb16.h"
 #include "timer.h"
 #include "xmp.h"
@@ -16,11 +20,43 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if AUDIO_RATE != SB16_RATE
+#error "AUDIO_RATE must equal SB16_RATE"
+#endif
+#if AUDIO_RATE != GUS_RATE
+#error "AUDIO_RATE must equal GUS_RATE"
+#endif
+
+typedef void (*fill_fn_t)(short *buf, int samples);
+
+typedef struct
+{
+  int (*init)(fill_fn_t);
+  void (*update)(void);
+  void (*shutdown)(void);
+  unsigned long (*restart)(void);
+} audio_driver;
+
+/* gus_fill_fn and sb16_fill_fn are both typedefs for void(*)(short*, int);
+ * the casts only strip the different alias names from the init pointers. */
+static const audio_driver DRV_GUS = {
+    (int (*)(fill_fn_t))gus_init,
+    gus_update,
+    gus_shutdown,
+    gus_restart};
+
+static const audio_driver DRV_SB16 = {
+    (int (*)(fill_fn_t))sb16_init,
+    sb16_update,
+    sb16_shutdown,
+    sb16_restart};
+
+static const audio_driver *g_drv = NULL;
 static xmp_context g_ctx = NULL;
 static int g_loaded = 0;
 static unsigned long g_audio_origin_ms = 0;
 
-/* Called by sb16_update() → fill one half-buffer with decoded PCM */
+/* Called by the active driver → fill one half-buffer with decoded PCM */
 static void fill_pcm(short *buf, int samples)
 {
   int bytes = samples * 2 * 2; /* stereo * 16-bit */
@@ -46,11 +82,23 @@ int audio_init(void)
   if (!g_ctx)
     return -1;
 
-  err = sb16_init(fill_pcm);
-  if (err != SB16_OK)
+  /* Prefer GUS if ULTRASND is set; fall back to SB16 on failure or
+   * when ULTRASND is absent. */
+  if (getenv("ULTRASND"))
+  {
+    g_drv = &DRV_GUS;
+    err = g_drv->init(fill_pcm);
+    if (err == 0)
+      return 0;
+  }
+
+  g_drv = &DRV_SB16;
+  err = g_drv->init(fill_pcm);
+  if (err != 0)
   {
     xmp_free_context(g_ctx);
     g_ctx = NULL;
+    g_drv = NULL;
     return err;
   }
   return 0;
@@ -61,7 +109,7 @@ int audio_load(Asset asset, unsigned long start_ms)
   void *buf;
   unsigned long t_restart;
 
-  if (!g_ctx)
+  if (!g_ctx || !g_drv)
     return -1;
 
   if (g_loaded)
@@ -82,7 +130,7 @@ int audio_load(Asset asset, unsigned long start_ms)
   }
   free(buf);
 
-  if (xmp_start_player(g_ctx, SB16_RATE, 0) != 0)
+  if (xmp_start_player(g_ctx, AUDIO_RATE, 0) != 0)
   {
     xmp_release_module(g_ctx);
     return -1;
@@ -95,7 +143,7 @@ int audio_load(Asset asset, unsigned long start_ms)
     xmp_seek_time(g_ctx, (int)start_ms);
 
   g_loaded = 1;
-  t_restart = sb16_restart();
+  t_restart = g_drv->restart();
   g_audio_origin_ms = t_restart - start_ms;
   return 0;
 }
@@ -104,11 +152,11 @@ void audio_seek(unsigned long ms)
 {
   unsigned long t_restart;
 
-  if (!g_loaded)
+  if (!g_loaded || !g_drv)
     return;
 
   xmp_seek_time(g_ctx, (int)ms);
-  t_restart = sb16_restart();
+  t_restart = g_drv->restart();
   g_audio_origin_ms = t_restart - ms;
 }
 
@@ -117,9 +165,19 @@ unsigned long audio_music_ms(void)
   return timer_ms() - g_audio_origin_ms;
 }
 
+void audio_update(void)
+{
+  if (g_drv)
+    g_drv->update();
+}
+
 void audio_shutdown(void)
 {
-  sb16_shutdown();
+  if (g_drv)
+  {
+    g_drv->shutdown();
+    g_drv = NULL;
+  }
 
   if (g_ctx)
   {
