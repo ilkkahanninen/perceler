@@ -120,6 +120,7 @@ src/
   utils/              Shared engine/scene utilities
     mem.c/h             Cache-staggered aligned allocator, MEM_OFFSET_* slot system
     timing.h            BPM/speed/rows to milliseconds, SampleTrack
+    tween.c/h           Keyframe parameter tweening in Q8.8 fp, ms timeline
 assets/               Source asset files (BMP, XM, MDL)
 asset-sources/        Source files, converted during build
   palette.bmp           Reference palette for PNG conversion
@@ -174,7 +175,7 @@ Load it at runtime with `font_load(ASSET_MYSTYLE_FNT)` and pair with `font_free(
 
 Files placed directly in `assets/` are packed as-is. All assets end up in `build/demo.dat`, and `src/assets.h` is regenerated with `ASSET_*` constants (filename uppercased, dots/hyphens become underscores).
 
-See header files for API usage: `bitmap.h`, `model.h`, `math.h`, `draw.h`, `font.h`, `palette.h`.
+See header files for API usage: `bitmap.h`, `model.h`, `math.h`, `draw.h`, `font.h`, `palette.h`, `tween.h`.
 
 ## Syncing effects to music
 
