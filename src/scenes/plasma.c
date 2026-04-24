@@ -14,11 +14,25 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vga.h>
+#include "../utils/timing.h"
+#include "../utils/tween.h"
 #include "utils/font.h"
 
 static Bitmap *image;
 static unsigned char *radial_tab;
 static unsigned char *overlay; /* full-screen bitmap layer; 0 = transparent */
+
+/* Tween the title's X position on a ~6-second timeline:
+ *   slide in from off-screen-left (ease-out so it decelerates on arrival),
+ *   hold near the left margin (TWEEN_STEP holds the value until the next key),
+ *   slide out to the right with an ease-in accelerating exit. */
+static const Keyframe title_x_keys[] = {
+    {    0, INT_TO_FP(-80), TWEEN_EASE_OUT}, /* off-screen left */
+    { 1200, INT_TO_FP(  6), TWEEN_STEP    }, /* slid in, pinned */
+    { 5000, INT_TO_FP(  6), TWEEN_EASE_IN }, /* still pinned; start accel */
+    { 6200, INT_TO_FP(330), TWEEN_LINEAR  }, /* off-screen right */
+};
+static const Tween title_x = TWEEN(title_x_keys);
 
 static void plasma_setup(void)
 {
@@ -146,7 +160,9 @@ static void plasma_render(unsigned char *backbuffer, unsigned int frame,
 
   blur(backbuffer);
 
-  font_draw(&font_default, backbuffer, 4, 4, 255, "plasma.c");
+  /* Slide the title via a keyframed tween. */
+  font_draw(&font_default, backbuffer,
+            tween_at_int(&title_x, FRAME_MS(frame)), 4, 255, "plasma.c");
 
   vga_vsync();
   vga_blit(backbuffer);
