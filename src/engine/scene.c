@@ -8,6 +8,7 @@
 #include "scene.h"
 
 #include "audio.h"
+#include "capture.h"
 #include "keyboard.h"
 #include "utils/mem.h"
 #include "timer.h"
@@ -68,32 +69,44 @@ int timeline_select(int argc, char *argv[], const TimelineEntry *source,
   return n;
 }
 
-void run_timeline(const TimelineEntry *timeline, const Asset *song, int loop,
-                  TimelineStats *stats)
+/* Count non-sentinel entries, run every setup, display the setup progress
+ * bar, and return the scene count. Shared by real-time and offline paths. */
+static int prepare_timeline(const TimelineEntry *timeline)
 {
-  unsigned long elapsed, run_start;
-  unsigned long frames = 0;
-  int number_of_scenes, current_scene_idx, need_init, need_seek;
-  const TimelineEntry *current_scene;
-  unsigned char *backbuffer =
-      (unsigned char *)mem_alloc_offset(VGA_SIZE, MEM_OFFSET_BACKBUFFER);
+  int number_of_scenes;
+  int i;
 
   for (number_of_scenes = 0; timeline[number_of_scenes].scene != 0;
        number_of_scenes++)
     ;
   if (number_of_scenes == 0)
-    return;
+    return 0;
 
   draw_progress(0, number_of_scenes);
-
-  /* Run setups first, in silence, so the music-to-visuals sync can begin
-   * precisely at the moment audio_load returns (see audio.c). */
-  for (current_scene_idx = 0; current_scene_idx < number_of_scenes;
-       current_scene_idx++)
+  for (i = 0; i < number_of_scenes; i++)
   {
-    timeline[current_scene_idx].scene->setup();
-    draw_progress(current_scene_idx + 1, number_of_scenes);
+    timeline[i].scene->setup();
+    draw_progress(i + 1, number_of_scenes);
   }
+  return number_of_scenes;
+}
+
+static void shutdown_timeline(const TimelineEntry *timeline, int n)
+{
+  int i;
+  for (i = 0; i < n; i++)
+    timeline[i].scene->shutdown();
+}
+
+static void run_timeline_realtime(const TimelineEntry *timeline,
+                                  const Asset *song, int loop,
+                                  TimelineStats *stats, int number_of_scenes,
+                                  unsigned char *backbuffer)
+{
+  unsigned long elapsed, run_start;
+  unsigned long frames = 0;
+  int current_scene_idx, need_init, need_seek;
+  const TimelineEntry *current_scene;
 
   current_scene_idx = 0;
   need_init = 1;
@@ -172,10 +185,104 @@ void run_timeline(const TimelineEntry *timeline, const Asset *song, int loop,
     stats->total_frames = frames;
     stats->total_ms = timer_ms() - run_start;
   }
+}
 
-  for (current_scene_idx = 0; current_scene_idx < number_of_scenes;
-       current_scene_idx++)
-    timeline[current_scene_idx].scene->shutdown();
+/*
+ * Offline render: advance a virtual clock by exactly 1000/60 ms per
+ * frame, render + capture each frame, render the matching chunk of
+ * audio into the WAV sink via libxmp. No keyboard navigation; scene
+ * selection via CLI still works. ESC aborts.
+ */
+static void run_timeline_offline(const TimelineEntry *timeline,
+                                 const Asset *song, TimelineStats *stats,
+                                 int number_of_scenes,
+                                 unsigned char *backbuffer)
+{
+  static short frame_audio[500 * 2]; /* stereo, max ~500 samples/frame */
+  unsigned long frames = 0;
+  unsigned long sample_acc = 0;
+  unsigned long run_start;
+  int current_scene_idx = 0;
+  int need_init = 1;
+  const TimelineEntry *current_scene = &timeline[0];
 
+  if (song)
+    audio_load(*song, current_scene->music_offset_ms);
+
+  run_start = timer_ms();
+
+  while (!key_down(KEY_ESC))
+  {
+    unsigned long virtual_ms;
+    unsigned long elapsed;
+    int samples;
+
+    if (need_init)
+    {
+      current_scene->scene->init(backbuffer);
+      need_init = 0;
+    }
+
+    virtual_ms = frames * 1000UL / 60UL;
+    elapsed = virtual_ms - current_scene->music_offset_ms;
+
+    current_scene->scene->render(
+        backbuffer,
+        (unsigned int)((elapsed * 61) >> 10),
+        (unsigned int)((virtual_ms * 61) >> 10));
+
+    capture_frame(backbuffer);
+
+    /* Audio chunk for this frame. Accumulator alternates 367/368 samples
+     * at 22050 Hz so 60 frames sum to exactly AUDIO_RATE. */
+    sample_acc += AUDIO_RATE;
+    samples = (int)(sample_acc / 60UL);
+    sample_acc -= (unsigned long)samples * 60UL;
+    if (samples > (int)(sizeof(frame_audio) / sizeof(frame_audio[0]) / 2))
+      samples = (int)(sizeof(frame_audio) / sizeof(frame_audio[0]) / 2);
+    audio_render_samples(frame_audio, samples);
+    capture_audio(frame_audio, samples);
+
+    frames++;
+
+    /* Auto-advance when the virtual clock reaches this scene's end. */
+    if (current_scene->duration_ms > 0 &&
+        elapsed >= current_scene->duration_ms)
+    {
+      if (++current_scene_idx >= number_of_scenes)
+        break;
+      current_scene = &timeline[current_scene_idx];
+      audio_seek(current_scene->music_offset_ms);
+      need_init = 1;
+    }
+  }
+
+  if (stats)
+  {
+    stats->total_frames = frames;
+    stats->total_ms = timer_ms() - run_start;
+  }
+}
+
+void run_timeline(const TimelineEntry *timeline, const Asset *song, int loop,
+                  TimelineStats *stats)
+{
+  int number_of_scenes;
+  unsigned char *backbuffer;
+
+  number_of_scenes = prepare_timeline(timeline);
+  if (number_of_scenes == 0)
+    return;
+
+  backbuffer =
+      (unsigned char *)mem_alloc_offset(VGA_SIZE, MEM_OFFSET_BACKBUFFER);
+
+  if (capture_enabled())
+    run_timeline_offline(timeline, song, stats, number_of_scenes, backbuffer);
+  else
+    run_timeline_realtime(timeline, song, loop, stats, number_of_scenes,
+                          backbuffer);
+
+  shutdown_timeline(timeline, number_of_scenes);
   mem_free_aligned(backbuffer);
 }

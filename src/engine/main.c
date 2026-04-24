@@ -8,12 +8,14 @@
 
 #include "../demo.h"
 #include "audio.h"
+#include "capture.h"
 #include "keyboard.h"
 #include "scene.h"
 #include "timer.h"
 #include "vga.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 
 int main(int argc, char *argv[])
 {
@@ -21,6 +23,16 @@ int main(int argc, char *argv[])
   TimelineStats stats;
   int have_selection;
   int num_scenes;
+  const char *capture_prefix = getenv("PERCELER_CAPTURE");
+
+  /* Capture-mode setup must precede the hardware-touching inits so the
+   * capture files open cleanly from text mode and audio stays in offline
+   * mode (no DMA hookup). */
+  if (capture_prefix && capture_prefix[0])
+  {
+    audio_set_offline(1);
+    capture_init(capture_prefix);
+  }
 
   vga_init();
   keyboard_init();
@@ -41,6 +53,7 @@ int main(int argc, char *argv[])
   timer_shutdown();
   keyboard_shutdown();
   vga_exit();
+  capture_shutdown();
 
   if (stats.total_ms > 0)
     printf("Average FPS: %lu\n", stats.total_frames * 1000 / stats.total_ms);

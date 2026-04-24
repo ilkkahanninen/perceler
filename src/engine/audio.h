@@ -10,6 +10,15 @@
 #define AUDIO_RATE 22050
 
 /*
+ * Switch between real-time playback (default) and offline render mode.
+ * In offline mode, no hardware driver is initialised; libxmp is still
+ * set up so the scene runner can drive audio_render_samples() manually
+ * to produce PCM alongside a deterministic frame loop.
+ * Must be called before audio_init() to take effect.
+ */
+void audio_set_offline(int enabled);
+
+/*
  * Initialize the audio subsystem. Picks a driver at runtime: if the
  * ULTRASND environment variable is set, the GUS driver is attempted
  * first; on failure (or if ULTRASND is absent), the SB16 driver is
@@ -40,8 +49,14 @@ void audio_seek(unsigned long ms);
  * Wall-clock milliseconds of music that has actually been heard since the
  * most recent load/seek. Callers use this as the master clock for visual
  * sync — it is never ahead of what the speakers are outputting.
+ * In offline mode this is meaningless (the scene runner owns the clock).
  */
 unsigned long audio_music_ms(void);
+
+/*
+ * Offline-only: render `samples` stereo sample-pairs from libxmp into
+ * `buf` (interleaved signed 16-bit). No-op if not loaded. */
+void audio_render_samples(short *buf, int samples);
 
 /*
  * Stop playback and release all audio resources.

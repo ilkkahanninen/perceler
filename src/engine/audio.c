@@ -54,7 +54,13 @@ static const audio_driver DRV_SB16 = {
 static const audio_driver *g_drv = NULL;
 static xmp_context g_ctx = NULL;
 static int g_loaded = 0;
+static int g_offline = 0;
 static unsigned long g_audio_origin_ms = 0;
+
+void audio_set_offline(int enabled)
+{
+  g_offline = enabled ? 1 : 0;
+}
 
 /* Called by the active driver → fill one half-buffer with decoded PCM */
 static void fill_pcm(short *buf, int samples)
@@ -81,6 +87,9 @@ int audio_init(void)
   g_ctx = xmp_create_context();
   if (!g_ctx)
     return -1;
+
+  if (g_offline)
+    return 0; /* libxmp ready; no hardware driver */
 
   /* Prefer GUS if ULTRASND is set; fall back to SB16 on failure or
    * when ULTRASND is absent. */
@@ -109,7 +118,9 @@ int audio_load(Asset asset, unsigned long start_ms)
   void *buf;
   unsigned long t_restart;
 
-  if (!g_ctx || !g_drv)
+  if (!g_ctx)
+    return -1;
+  if (!g_offline && !g_drv)
     return -1;
 
   if (g_loaded)
@@ -143,6 +154,13 @@ int audio_load(Asset asset, unsigned long start_ms)
     xmp_seek_time(g_ctx, (int)start_ms);
 
   g_loaded = 1;
+
+  if (g_offline)
+  {
+    g_audio_origin_ms = 0; /* scene runner owns the virtual clock */
+    return 0;
+  }
+
   t_restart = g_drv->restart();
   g_audio_origin_ms = t_restart - start_ms;
   return 0;
@@ -152,10 +170,16 @@ void audio_seek(unsigned long ms)
 {
   unsigned long t_restart;
 
-  if (!g_loaded || !g_drv)
+  if (!g_loaded)
     return;
 
   xmp_seek_time(g_ctx, (int)ms);
+
+  if (g_offline)
+    return;
+  if (!g_drv)
+    return;
+
   t_restart = g_drv->restart();
   g_audio_origin_ms = t_restart - ms;
 }
@@ -169,6 +193,11 @@ void audio_update(void)
 {
   if (g_drv)
     g_drv->update();
+}
+
+void audio_render_samples(short *buf, int samples)
+{
+  fill_pcm(buf, samples);
 }
 
 void audio_shutdown(void)
