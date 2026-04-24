@@ -12,6 +12,7 @@
 #include <vga.h>
 #include <stdlib.h>
 #include "utils/font.h"
+#include "utils/palette.h"
 
 #define TEX_SIZE 256
 #define CX (VGA_WIDTH / 2)
@@ -25,6 +26,12 @@ static unsigned char *dist_tab;
 
 /* Procedural texture */
 static unsigned char texture[TEX_SIZE * TEX_SIZE];
+
+/* Two endpoint palettes that palette_lerp() interpolates between each
+ * frame. pal_current is the blended DAC state written to the VGA. */
+static Palette pal_warm;
+static Palette pal_cool;
+static Palette pal_current;
 
 static void generate_texture(void)
 {
@@ -66,16 +73,24 @@ static void generate_tables(void)
   }
 }
 
-static void set_tunnel_palette(void)
+static void build_palettes(void)
 {
   int i;
   for (i = 0; i < 256; i++)
   {
-    unsigned char r, g, b;
-    r = (unsigned char)(32.0 * (1.0 + sin(i * PI / 128.0)));
-    g = (unsigned char)(20.0 * (1.0 + sin(i * PI / 64.0 + 2.0)));
-    b = (unsigned char)(32.0 * (1.0 + sin(i * PI / 96.0 + 4.0)));
-    vga_setpalette((unsigned char)i, r, g, b);
+    /* Warm: red/orange with a weak yellow undertone, no blue. */
+    pal_warm.entries[i][0] =
+        (unsigned char)(32.0 * (1.0 + sin(i * PI / 128.0)));
+    pal_warm.entries[i][1] =
+        (unsigned char)(12.0 * (1.0 + sin(i * PI / 64.0)));
+    pal_warm.entries[i][2] = 0;
+
+    /* Cool: blue/cyan, no red. */
+    pal_cool.entries[i][0] = 0;
+    pal_cool.entries[i][1] =
+        (unsigned char)(12.0 * (1.0 + sin(i * PI / 64.0 + 1.5)));
+    pal_cool.entries[i][2] =
+        (unsigned char)(32.0 * (1.0 + sin(i * PI / 96.0 + 3.0)));
   }
 }
 
@@ -88,7 +103,11 @@ static void tunnel_setup(void)
 static void tunnel_init(unsigned char *backbuffer)
 {
   (void)backbuffer;
-  set_tunnel_palette();
+  build_palettes();
+  /* Seed pal_current so the very first frame isn't drawn against the
+   * zero-initialised (all-black) palette. */
+  pal_current = pal_warm;
+  palette_apply(&pal_current);
 }
 
 static void tunnel_shutdown(void)
@@ -121,7 +140,15 @@ static void tunnel_render(unsigned char *backbuffer, unsigned int frame,
 
   font_draw(&font_default, backbuffer, 4, 4, 255, "tunnel.c");
 
+  /* Crossfade warm ↔ cool on a ~2-second cycle (120 frames @ 60 fps).
+   * t oscillates 0..256: 0 = full warm, 256 = full cool. */
+  {
+    int t = 128 + (int)(128.0 * sin(frame * (2.0 * PI / 120.0)));
+    palette_lerp(&pal_current, &pal_warm, &pal_cool, t);
+  }
+
   vga_vsync();
+  palette_apply(&pal_current);
   vga_blit(backbuffer);
 }
 
