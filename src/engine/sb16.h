@@ -24,4 +24,8 @@ int sb16_init(sb16_fill_fn fill);
 void sb16_update(void); /* call once per main-loop iteration */
 void sb16_shutdown(void);
 
+/* Stop DSP, refill both halves, reprogram DMA, restart DSP.
+ * Returns timer_ms() at the moment DMA begins consuming sample 0. */
+unsigned long sb16_restart(void);
+
 #endif

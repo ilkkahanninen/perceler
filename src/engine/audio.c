@@ -10,6 +10,7 @@
 
 #include "data.h"
 #include "sb16.h"
+#include "timer.h"
 #include "xmp.h"
 
 #include <stdlib.h>
@@ -17,6 +18,7 @@
 
 static xmp_context g_ctx = NULL;
 static int g_loaded = 0;
+static unsigned long g_audio_origin_ms = 0;
 
 /* Called by sb16_update() → fill one half-buffer with decoded PCM */
 static void fill_pcm(short *buf, int samples)
@@ -54,9 +56,10 @@ int audio_init(void)
   return 0;
 }
 
-int audio_load(Asset asset)
+int audio_load(Asset asset, unsigned long start_ms)
 {
   void *buf;
+  unsigned long t_restart;
 
   if (!g_ctx)
     return -1;
@@ -88,14 +91,30 @@ int audio_load(Asset asset)
   xmp_set_player(g_ctx, XMP_PLAYER_DSP, 0);
   xmp_set_player(g_ctx, XMP_PLAYER_INTERP, XMP_INTERP_NEAREST);
 
+  if (start_ms > 0)
+    xmp_seek_time(g_ctx, (int)start_ms);
+
   g_loaded = 1;
+  t_restart = sb16_restart();
+  g_audio_origin_ms = t_restart - start_ms;
   return 0;
 }
 
 void audio_seek(unsigned long ms)
 {
-  if (g_loaded)
-    xmp_seek_time(g_ctx, (int)ms);
+  unsigned long t_restart;
+
+  if (!g_loaded)
+    return;
+
+  xmp_seek_time(g_ctx, (int)ms);
+  t_restart = sb16_restart();
+  g_audio_origin_ms = t_restart - ms;
+}
+
+unsigned long audio_music_ms(void)
+{
+  return timer_ms() - g_audio_origin_ms;
 }
 
 void audio_shutdown(void)

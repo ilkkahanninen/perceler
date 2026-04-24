@@ -71,10 +71,9 @@ int timeline_select(int argc, char *argv[], const TimelineEntry *source,
 void run_timeline(const TimelineEntry *timeline, const Asset *song, int loop,
                   TimelineStats *stats)
 {
-  unsigned long scene_start, elapsed, run_start;
+  unsigned long elapsed, run_start;
   unsigned long frames = 0;
   int number_of_scenes, current_scene_idx, need_init, need_seek;
-  int total_steps;
   const TimelineEntry *current_scene;
   unsigned char *backbuffer =
       (unsigned char *)mem_alloc_offset(VGA_SIZE, MEM_OFFSET_BACKBUFFER);
@@ -85,26 +84,25 @@ void run_timeline(const TimelineEntry *timeline, const Asset *song, int loop,
   if (number_of_scenes == 0)
     return;
 
-  total_steps = number_of_scenes + 1;
-  draw_progress(0, total_steps);
+  draw_progress(0, number_of_scenes);
 
-  if (song)
-    audio_load(*song);
-  draw_progress(1, total_steps);
-
+  /* Run setups first, in silence, so the music-to-visuals sync can begin
+   * precisely at the moment audio_load returns (see audio.c). */
   for (current_scene_idx = 0; current_scene_idx < number_of_scenes;
        current_scene_idx++)
   {
     timeline[current_scene_idx].scene->setup();
-    draw_progress(current_scene_idx + 2, total_steps);
+    draw_progress(current_scene_idx + 1, number_of_scenes);
   }
 
   current_scene_idx = 0;
   need_init = 1;
   need_seek = 0;
   current_scene = &timeline[0];
-  scene_start = timer_ms();
-  audio_seek(current_scene->music_offset_ms);
+
+  if (song)
+    audio_load(*song, current_scene->music_offset_ms);
+
   run_start = timer_ms();
 
   while (!key_down(KEY_ESC))
@@ -117,7 +115,7 @@ void run_timeline(const TimelineEntry *timeline, const Asset *song, int loop,
 
     audio_update();
 
-    elapsed = timer_ms() - scene_start;
+    elapsed = audio_music_ms() - current_scene->music_offset_ms;
     current_scene->scene->render(
         backbuffer,
         (unsigned int)((elapsed * 61) >> 10),
@@ -146,7 +144,10 @@ void run_timeline(const TimelineEntry *timeline, const Asset *song, int loop,
       if (++current_scene_idx >= number_of_scenes)
       {
         if (loop)
+        {
           current_scene_idx = 0;
+          need_seek = 1;
+        }
         else
           break;
       }
@@ -156,9 +157,8 @@ void run_timeline(const TimelineEntry *timeline, const Asset *song, int loop,
       continue;
     }
 
-    /* Scene changed — reset timing */
+    /* Scene changed */
     need_init = 1;
-    scene_start = timer_ms();
     current_scene = &timeline[current_scene_idx];
     if (need_seek)
     {

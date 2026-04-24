@@ -12,6 +12,8 @@
 
 #include "sb16.h"
 
+#include "timer.h"
+
 #include <dos.h>
 #include <i86.h>
 #include <stdlib.h>
@@ -183,6 +185,36 @@ static void parse_blaster(void)
 }
 
 /* ------------------------------------------------------------------ */
+/* Pre-fill both halves, program DMA, start DSP.                        */
+/* Returns timer_ms() at the instant DMA begins consuming sample 0.     */
+/* ------------------------------------------------------------------ */
+static unsigned long start_playback(void)
+{
+  unsigned long t_start;
+  unsigned short hcnt;
+
+  g_fill(g_buf, SB16_HALF_SAMPLES);
+  g_fill(g_buf + SB16_HALF_SAMPLES * 2, SB16_HALF_SAMPLES);
+  g_half = 0;
+  g_need = 0;
+
+  dma5_program(g_phys, FULL_BYTES);
+
+  dsp_write(DSP_SET_OUT_RATE);
+  dsp_write((unsigned char)((SB16_RATE >> 8) & 0xFF));
+  dsp_write((unsigned char)(SB16_RATE & 0xFF));
+  dsp_write(DSP_SPEAKER_ON);
+  dsp_write(DSP_PLAY_16_AI);
+  dsp_write(DSP_MODE_S16);
+  hcnt = (unsigned short)(SB16_HALF_SAMPLES * 2 - 1);
+  dsp_write((unsigned char)(hcnt & 0xFF));
+  dsp_write((unsigned char)(hcnt >> 8));
+  t_start = timer_ms();
+
+  return t_start;
+}
+
+/* ------------------------------------------------------------------ */
 /* Public API                                                           */
 /* ------------------------------------------------------------------ */
 int sb16_init(sb16_fill_fn fill)
@@ -266,28 +298,7 @@ int sb16_init(sb16_fill_fn fill)
     outp(PIC2_DATA, g_old_irq_mask & ~(1 << (sb_irq - 8)));
   }
 
-  /* --- Pre-fill both halves --- */
-  fill(g_buf, SB16_HALF_SAMPLES);
-  fill(g_buf + SB16_HALF_SAMPLES * 2, SB16_HALF_SAMPLES);
-  g_half = 0;
-
-  /* --- Program DMA channel 5 (full buffer, auto-init) --- */
-  dma5_program(g_phys, FULL_BYTES);
-
-  /* --- Start SB16 DSP --- */
-  dsp_write(DSP_SET_OUT_RATE);
-  dsp_write((unsigned char)((SB16_RATE >> 8) & 0xFF));
-  dsp_write((unsigned char)(SB16_RATE & 0xFF));
-  dsp_write(DSP_SPEAKER_ON);
-  dsp_write(DSP_PLAY_16_AI);
-  dsp_write(DSP_MODE_S16);
-  /* DSP transfer count = words per half - 1 (2 words per stereo sample) */
-  {
-    unsigned short hcnt = (unsigned short)(SB16_HALF_SAMPLES * 2 - 1);
-    dsp_write((unsigned char)(hcnt & 0xFF));
-    dsp_write((unsigned char)(hcnt >> 8));
-  }
-
+  start_playback();
   return SB16_OK;
 }
 
@@ -338,4 +349,35 @@ void sb16_shutdown(void)
 
   g_fill = NULL;
   g_buf = NULL;
+}
+
+unsigned long sb16_restart(void)
+{
+  unsigned long t_start;
+
+  /* Mask SB IRQ at PIC so the ISR can't race during reprogramming */
+  if (sb_irq < 8)
+    outp(PIC1_DATA, inp(PIC1_DATA) | (1 << sb_irq));
+  else
+    outp(PIC2_DATA, inp(PIC2_DATA) | (1 << (sb_irq - 8)));
+
+  /* Stop current DSP transfer and drain any pending IRQ */
+  dsp_write(DSP_STOP_16);
+  inp(SB_ACK16);
+  if (g_irq_vec >= 0x70)
+    outp(PIC2_CMD, PIC_EOI);
+  outp(PIC1_CMD, PIC_EOI);
+
+  /* Mask DMA ch 5 while we reprogram */
+  outp(DMA5_MASK, 0x05);
+
+  t_start = start_playback();
+
+  /* Unmask SB IRQ */
+  if (sb_irq < 8)
+    outp(PIC1_DATA, inp(PIC1_DATA) & ~(1 << sb_irq));
+  else
+    outp(PIC2_DATA, inp(PIC2_DATA) & ~(1 << (sb_irq - 8)));
+
+  return t_start;
 }
