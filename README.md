@@ -4,13 +4,13 @@ A demo engine for DOS featuring real-time effects running in VGA Mode 13h (320x2
 
 ## Prerequisites
 
-- Python 3 (for asset packing and palette tools)
-- [DOSBox-X](https://github.com/joncampbell123/dosbox-x) (for running the demo)
+- Python 3 (for asset packing during setup and build)
 - curl (for downloading toolchain and libraries during setup)
+- On macOS, [Homebrew](https://brew.sh/) is recommended so `setup.sh` can install DOSBox-X and ffmpeg automatically
 
 ## Setup
 
-Run the setup script to download Open Watcom V2, libxmp-lite, and install DOSBox-X:
+Run the setup script to download the toolchain, libraries, and runtime dependencies:
 
 ```sh
 ./setup.sh
@@ -21,6 +21,9 @@ This will:
 - Download and install Open Watcom V2 cross-compiler into `tools/watcom/`
 - Download libxmp-lite 4.7.0 into `libs/libxmp-lite/`
 - Install DOSBox-X via Homebrew (macOS) or print instructions (Linux)
+- Optionally install ffmpeg (used by `make capture`); prompts before installing
+- Optionally install the commit-msg hook that enforces the prefix convention
+- Pack the bundled assets via `make assets`
 
 ## VSCode setup
 

@@ -112,11 +112,8 @@ else
     echo "libxmp-lite installed."
 fi
 
-# Create assets directory for music files
+# Create assets directory 
 mkdir -p "$SCRIPT_DIR/assets"
-if [ ! -f "$SCRIPT_DIR/assets/music.xm" ]; then
-    echo "NOTE: Place your XM file at assets/music.xm before running make."
-fi
 
 # --- Install DOSBox-X ---
 if command -v dosbox-x &> /dev/null; then
@@ -136,6 +133,37 @@ else
             echo "WARNING: Please install DOSBox-X for your distribution:"
             echo "  https://github.com/joncampbell123/dosbox-x/releases"
             echo "  Or: sudo apt install dosbox-x / sudo dnf install dosbox-x"
+            ;;
+    esac
+fi
+
+# --- Install ffmpeg (used by `make capture`) ---
+if command -v ffmpeg &> /dev/null; then
+    echo "ffmpeg already installed: $(which ffmpeg)"
+else
+    echo ""
+    echo "ffmpeg is required by 'make capture' to encode the offline render"
+    echo "to MP4. You can skip this if you don't plan to use video capture."
+    read -r -p "Install ffmpeg? [y/N] " REPLY
+    case "$REPLY" in
+        [yY]|[yY][eE][sS])
+            case "$(uname -s)" in
+                Darwin)
+                    if command -v brew &> /dev/null; then
+                        brew install ffmpeg
+                    else
+                        echo "WARNING: Homebrew not found. Install ffmpeg manually:"
+                        echo "  https://ffmpeg.org/download.html"
+                    fi
+                    ;;
+                Linux)
+                    echo "WARNING: Please install ffmpeg for your distribution:"
+                    echo "  sudo apt install ffmpeg / sudo dnf install ffmpeg"
+                    ;;
+            esac
+            ;;
+        *)
+            echo "Skipped. 'make capture' will fail until ffmpeg is on PATH."
             ;;
     esac
 fi
@@ -164,6 +192,8 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
         esac
     fi
 fi
+
+make assets
 
 echo ""
 echo "=== Setup complete ==="
