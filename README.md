@@ -98,20 +98,12 @@ Run the whole pipeline (build → capture → encode) with:
 make capture
 ```
 
-That generates a temporary DOSBox-X config with `set PERCELER_CAPTURE=CAPTURE` prepended before `demo.exe`, runs it, then feeds the resulting `build/CAPTURE.RAW` + `build/CAPTURE.WAV` to [tools/capture2video.py](tools/capture2video.py) to produce `build/demo.mp4`. Requires `ffmpeg` on PATH.
+That runs DOSBox-X against [dosbox-capture.conf](dosbox-capture.conf) (a sibling of `dosbox-x.conf` whose `[autoexec]` sets `PERCELER_CAPTURE` and `PERCELER_RATE` and skips the trailing `pause`), then feeds the resulting `build/CAPTURE.RAW` + `build/CAPTURE.WAV` to [tools/capture2video.py](tools/capture2video.py) to produce `build/demo.mp4`. Requires `ffmpeg` on PATH.
 
-Override the output path or the 8.3 DOS stem if needed:
+To change the output stem or sample rate, edit `dosbox-capture.conf` directly. The host-side MP4 path is overridable via `make`:
 
 ```sh
 make capture CAPTURE_OUT=trailer.mp4
-make capture CAPTURE_PREFIX=TAKE2 CAPTURE_OUT=take2.mp4
-```
-
-For a manual run without `make`, add to the `[autoexec]` section of `dosbox-x.conf`:
-
-```
-set PERCELER_CAPTURE=CAPTURE
-demo.exe
 ```
 
 Then encode directly:

@@ -131,18 +131,15 @@ else
 endif
 
 # --- Capture end-to-end: run the demo in offline-render mode, then encode ---
-# Override CAPTURE_PREFIX to change the 8.3 DOS stem that CAPTURE.RAW and
-# CAPTURE.WAV are written under; CAPTURE_OUT is the final MP4 on the host.
-# CAPTURE_RATE bumps PERCELER_RATE for the offline render — the DOS-side DMA
-# rate is unused in offline mode, so crank the mix up to 44.1 kHz by default.
+# The DOS-side env vars (PERCELER_CAPTURE, PERCELER_RATE) live in
+# dosbox-capture.conf — edit that file to change the output stem or sample
+# rate. CAPTURE_OUT is the final MP4 on the host.
 CAPTURE_PREFIX ?= CAPTURE
 CAPTURE_OUT    ?= $(BUILDDIR)/demo.mp4
-CAPTURE_RATE   ?= 44100
 
 capture: all
 	@echo "[capture] running demo in offline-render mode..."
-	@awk '/^demo\.exe/ { print "set PERCELER_CAPTURE=$(CAPTURE_PREFIX)"; print "set PERCELER_RATE=$(CAPTURE_RATE)"; print; next } /^pause$$/ { next } { print }' dosbox-x.conf > $(BUILDDIR)/dosbox-capture.conf
-	dosbox-x -conf $(BUILDDIR)/dosbox-capture.conf
+	dosbox-x -conf dosbox-capture.conf
 	@echo "[capture] encoding $(CAPTURE_OUT)..."
 	python3 tools/capture2video.py --scale 3 $(BUILDDIR)/$(CAPTURE_PREFIX) $(CAPTURE_OUT)
 	@echo "[capture] done: $(CAPTURE_OUT)"
