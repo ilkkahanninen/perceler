@@ -1,6 +1,8 @@
 #include "demo.h"
 
-#include "scenes/model_viewer.h"
+#include "scenes/model_flatshade.h"
+#include "scenes/model_gouraud.h"
+#include "scenes/model_wireframe.h"
 #include "scenes/plasma.h"
 #include "scenes/polyhedra.h"
 #include "scenes/tunnel.h"
@@ -11,8 +13,9 @@
 #define PATTERN_LEN 128
 
 TimelineEntry demo_timeline[] = {
-    {&model_viewer_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
-    {&model_viewer_flatshade_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
+    {&model_wireframe_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
+    {&model_flatshade_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
+    {&model_gouraud_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
     {&polyhedra_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
     {&plasma_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
     {&tunnel_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},

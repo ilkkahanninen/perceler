@@ -1,10 +1,8 @@
 /*
  * model.c - Binary model loader
  *
- * Loads the flat binary format produced by obj2model.py.
- *
- * Layout: [num_triangles] [positions] [uvs] [normals]
- * All values are little-endian 32-bit signed integers.
+ * Layout: [num_triangles] [positions] [uvs] [face_normals] [vertex_normals]
+ * All values are little-endian 32-bit signed integers.  See model.h.
  */
 
 #include "model.h"
@@ -13,13 +11,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-Model *model_load(Asset asset)
+Model *model_load(Asset asset, unsigned flags)
 {
   unsigned char *buf;
   Model *mdl;
   int num_tri;
-  int pos_size, uv_size, norm_size;
+  int pos_size, uv_size, fnorm_size, vnorm_size;
   const int *src;
+  int ok = 1;
 
   buf = (unsigned char *)data_read(asset);
   if (!buf)
@@ -30,7 +29,8 @@ Model *model_load(Asset asset)
 
   pos_size = num_tri * 9 * (int)sizeof(int);
   uv_size = num_tri * 6 * (int)sizeof(int);
-  norm_size = num_tri * 3 * (int)sizeof(int);
+  fnorm_size = num_tri * 3 * (int)sizeof(int);
+  vnorm_size = num_tri * 9 * (int)sizeof(int);
 
   mdl = (Model *)malloc(sizeof(Model));
   if (!mdl)
@@ -38,27 +38,54 @@ Model *model_load(Asset asset)
     free(buf);
     return 0;
   }
-
   mdl->num_triangles = num_tri;
-  mdl->positions = (int *)malloc(pos_size);
-  mdl->uvs = (int *)malloc(uv_size);
-  mdl->normals = (int *)malloc(norm_size);
+  mdl->positions = 0;
+  mdl->uvs = 0;
+  mdl->face_normals = 0;
+  mdl->vertex_normals = 0;
 
-  if (!mdl->positions || !mdl->uvs || !mdl->normals)
+  if (flags & MODEL_LOAD_POSITIONS)
   {
-    free(mdl->positions);
-    free(mdl->uvs);
-    free(mdl->normals);
-    free(mdl);
-    free(buf);
-    return 0;
+    mdl->positions = (int *)malloc(pos_size);
+    if (!mdl->positions)
+      ok = 0;
+    else
+      memcpy(mdl->positions, src + 1, pos_size);
+  }
+  if (ok && (flags & MODEL_LOAD_UVS))
+  {
+    mdl->uvs = (int *)malloc(uv_size);
+    if (!mdl->uvs)
+      ok = 0;
+    else
+      memcpy(mdl->uvs, src + 1 + num_tri * 9, uv_size);
+  }
+  if (ok && (flags & MODEL_LOAD_FACE_NORMALS))
+  {
+    mdl->face_normals = (int *)malloc(fnorm_size);
+    if (!mdl->face_normals)
+      ok = 0;
+    else
+      memcpy(mdl->face_normals, src + 1 + num_tri * 9 + num_tri * 6,
+             fnorm_size);
+  }
+  if (ok && (flags & MODEL_LOAD_VERTEX_NORMALS))
+  {
+    mdl->vertex_normals = (int *)malloc(vnorm_size);
+    if (!mdl->vertex_normals)
+      ok = 0;
+    else
+      memcpy(mdl->vertex_normals,
+             src + 1 + num_tri * 9 + num_tri * 6 + num_tri * 3, vnorm_size);
   }
 
-  memcpy(mdl->positions, src + 1, pos_size);
-  memcpy(mdl->uvs, src + 1 + num_tri * 9, uv_size);
-  memcpy(mdl->normals, src + 1 + num_tri * 9 + num_tri * 6, norm_size);
-
   free(buf);
+
+  if (!ok)
+  {
+    model_free(mdl);
+    return 0;
+  }
   return mdl;
 }
 
@@ -68,6 +95,7 @@ void model_free(Model *mdl)
     return;
   free(mdl->positions);
   free(mdl->uvs);
-  free(mdl->normals);
+  free(mdl->face_normals);
+  free(mdl->vertex_normals);
   free(mdl);
 }

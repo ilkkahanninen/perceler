@@ -203,6 +203,9 @@ static void emit_tri(Model *m, int i, Vec3 a, Vec3 b, Vec3 c, Vec3 n)
 {
   int po = i * 9;
   int no = i * 3;
+  int vno = i * 9;
+  int nx = q88(n.x), ny = q88(n.y), nz = q88(n.z);
+  int j;
   m->positions[po + 0] = q88(a.x);
   m->positions[po + 1] = q88(a.y);
   m->positions[po + 2] = q88(a.z);
@@ -212,9 +215,18 @@ static void emit_tri(Model *m, int i, Vec3 a, Vec3 b, Vec3 c, Vec3 n)
   m->positions[po + 6] = q88(c.x);
   m->positions[po + 7] = q88(c.y);
   m->positions[po + 8] = q88(c.z);
-  m->normals[no + 0] = q88(n.x);
-  m->normals[no + 1] = q88(n.y);
-  m->normals[no + 2] = q88(n.z);
+  m->face_normals[no + 0] = nx;
+  m->face_normals[no + 1] = ny;
+  m->face_normals[no + 2] = nz;
+  /* Polyhedra are flat-shaded by construction: every vertex of the
+   * triangle uses the face normal, so a Gouraud rasterizer reduces
+   * to flat shading without any branch. */
+  for (j = 0; j < 3; j++)
+  {
+    m->vertex_normals[vno + j * 3 + 0] = nx;
+    m->vertex_normals[vno + j * 3 + 1] = ny;
+    m->vertex_normals[vno + j * 3 + 2] = nz;
+  }
 }
 
 /* Biggest face any supported polyhedron has (cube = 4). Keep the stack
@@ -252,13 +264,11 @@ Model *polyhedron_create(PolyhedronKind kind, int extrude_fp, int scale_fp)
   m->num_triangles = num_tri;
   m->positions = (int *)malloc((unsigned)num_tri * 9 * sizeof(int));
   m->uvs = (int *)malloc((unsigned)num_tri * 6 * sizeof(int));
-  m->normals = (int *)malloc((unsigned)num_tri * 3 * sizeof(int));
-  if (!m->positions || !m->uvs || !m->normals)
+  m->face_normals = (int *)malloc((unsigned)num_tri * 3 * sizeof(int));
+  m->vertex_normals = (int *)malloc((unsigned)num_tri * 9 * sizeof(int));
+  if (!m->positions || !m->uvs || !m->face_normals || !m->vertex_normals)
   {
-    free(m->positions);
-    free(m->uvs);
-    free(m->normals);
-    free(m);
+    model_free(m);
     return 0;
   }
   memset(m->uvs, 0, (unsigned)num_tri * 6 * sizeof(int));

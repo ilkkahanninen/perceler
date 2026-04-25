@@ -4,12 +4,22 @@ Convert a Wavefront .obj file to the binary model format used by the engine.
 
 Binary layout (all values are little-endian 32-bit signed integers):
     [num_triangles]
-    [positions: num_triangles * 9 ints — x0,y0,z0, x1,y1,z1, x2,y2,z2 in 8.8 fp]
-    [uvs:       num_triangles * 6 ints — u0,v0, u1,v1, u2,v2 in 8.8 fp]
-    [normals:   num_triangles * 3 ints — nx, ny, nz in 8.8 fp]
+    [positions:      num_triangles * 9 ints — 3 verts * (x,y,z)  in 8.8 fp]
+    [uvs:            num_triangles * 6 ints — 3 verts * (u,v)    in 8.8 fp]
+    [face_normals:   num_triangles * 3 ints — (nx,ny,nz)         in 8.8 fp]
+    [vertex_normals: num_triangles * 9 ints — 3 verts * (nx,ny,nz) in 8.8 fp]
 
-Faces with more than 3 vertices are triangulated as a fan.
-Missing UVs default to (0, 0).
+Per-vertex normals are sourced in priority order:
+
+  1. If the .obj face uses `v/vt/vn` syntax, the referenced `vn` is used
+     directly.
+  2. Otherwise faces are grouped by their `s` (smoothing-group) directive
+     and per-vertex normals are computed as the unit-length sum of face
+     normals over all faces that share both the geometric position and
+     the smoothing group.  `s 0` / `s off` faces are not averaged with
+     anything: each such vertex stores the face normal of its own face.
+
+Faces with more than 3 vertices are fan-triangulated.
 
 Usage:
     python3 tools/obj2model.py input.obj output.mdl
@@ -17,16 +27,21 @@ Usage:
 No external dependencies — uses only the Python standard library.
 """
 
+import math
 import struct
 import sys
-import math
 
 
 def parse_obj(path):
-    """Parse an .obj file, returning lists of vertices, texcoords, and faces."""
+    """Parse an .obj file. Returns (vertices, texcoords, normals, faces).
+
+    Each face is a tuple (smooth_group, [(vi, ti, ni), ...]) where indices
+    are 0-based; ti and ni are -1 if not specified."""
     vertices = []
     texcoords = []
+    normals = []
     faces = []
+    smooth = 0  # 0 = off
 
     with open(path, "r") as f:
         for line in f:
@@ -37,80 +52,161 @@ def parse_obj(path):
             key = parts[0]
 
             if key == "v" and len(parts) >= 4:
-                vertices.append(
-                    (float(parts[1]), float(parts[2]), float(parts[3]))
-                )
+                vertices.append((float(parts[1]), float(parts[2]),
+                                 float(parts[3])))
             elif key == "vt" and len(parts) >= 3:
                 texcoords.append((float(parts[1]), float(parts[2])))
+            elif key == "vn" and len(parts) >= 4:
+                normals.append((float(parts[1]), float(parts[2]),
+                                float(parts[3])))
+            elif key == "s":
+                arg = parts[1] if len(parts) > 1 else "0"
+                if arg in ("off", "0"):
+                    smooth = 0
+                else:
+                    try:
+                        smooth = int(arg)
+                    except ValueError:
+                        smooth = 0
             elif key == "f":
                 face_verts = []
                 for p in parts[1:]:
                     indices = p.split("/")
                     vi = int(indices[0]) - 1
-                    ti = int(indices[1]) - 1 if len(indices) > 1 and indices[1] else -1
-                    face_verts.append((vi, ti))
-                faces.append(face_verts)
+                    ti = (int(indices[1]) - 1
+                          if len(indices) > 1 and indices[1] else -1)
+                    ni = (int(indices[2]) - 1
+                          if len(indices) > 2 and indices[2] else -1)
+                    face_verts.append((vi, ti, ni))
+                faces.append((smooth, face_verts))
 
-    return vertices, texcoords, faces
+    return vertices, texcoords, normals, faces
 
 
 def triangulate(faces):
-    """Fan-triangulate faces with more than 3 vertices."""
+    """Fan-triangulate. Returns list of (smooth, [(vi,ti,ni)]*3)."""
     triangles = []
-    for face in faces:
+    for smooth, face in faces:
         for i in range(1, len(face) - 1):
-            triangles.append((face[0], face[i], face[i + 1]))
+            triangles.append((smooth, [face[0], face[i], face[i + 1]]))
     return triangles
 
 
-def compute_normal(v0, v1, v2):
-    """Compute face normal from three vertices. Returns unit normal."""
-    e1 = (v1[0] - v0[0], v1[1] - v0[1], v1[2] - v0[2])
-    e2 = (v2[0] - v0[0], v2[1] - v0[1], v2[2] - v0[2])
-    nx = e1[1] * e2[2] - e1[2] * e2[1]
-    ny = e1[2] * e2[0] - e1[0] * e2[2]
-    nz = e1[0] * e2[1] - e1[1] * e2[0]
-    length = math.sqrt(nx * nx + ny * ny + nz * nz)
-    if length < 1e-12:
+def cross(a, b):
+    return (a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0])
+
+
+def sub(a, b):
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def normalize(v):
+    n = math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+    if n < 1e-12:
         return (0.0, 0.0, 0.0)
-    return (nx / length, ny / length, nz / length)
+    return (v[0] / n, v[1] / n, v[2] / n)
 
 
-def float_to_fp8(x):
-    """Convert float to 8.8 fixed-point integer."""
+def face_normal(v0, v1, v2):
+    return normalize(cross(sub(v1, v0), sub(v2, v0)))
+
+
+def compute_vertex_normals(vertices, triangles, face_normals):
+    """For each (triangle, vertex_in_triangle) pair, compute the vertex
+    normal: sum of face normals of all triangles sharing this position
+    in the same smoothing group, then normalised. `s 0` triangles get
+    their own face normal back (no averaging)."""
+
+    # Bucket: (vertex_index, smooth_group) -> list of triangle indices.
+    # smooth=0 buckets only contain that one triangle (we use a unique
+    # sentinel so they never average together).
+    buckets = {}
+    for ti, (smooth, verts) in enumerate(triangles):
+        for vi, _, _ in verts:
+            if smooth == 0:
+                key = (vi, ("flat", ti))
+            else:
+                key = (vi, smooth)
+            buckets.setdefault(key, []).append(ti)
+
+    out = []
+    for ti, (smooth, verts) in enumerate(triangles):
+        for vi, _, _ in verts:
+            if smooth == 0:
+                key = (vi, ("flat", ti))
+            else:
+                key = (vi, smooth)
+            members = buckets[key]
+            if len(members) == 1:
+                out.append(face_normals[members[0]])
+            else:
+                ax = ay = az = 0.0
+                for m in members:
+                    n = face_normals[m]
+                    ax += n[0]
+                    ay += n[1]
+                    az += n[2]
+                out.append(normalize((ax, ay, az)))
+    return out
+
+
+def f88(x):
     return int(round(x * 256.0))
 
 
 def convert(obj_path, out_path):
-    vertices, texcoords, faces = parse_obj(obj_path)
+    vertices, texcoords, file_normals, faces = parse_obj(obj_path)
     triangles = triangulate(faces)
     num_triangles = len(triangles)
 
+    # Compute the face normal for every triangle (used both for the
+    # face_normals output array and as the basis for averaged vertex
+    # normals when the file doesn't supply per-vertex normals).
+    face_normals_geom = []
+    for _, verts in triangles:
+        v0 = vertices[verts[0][0]]
+        v1 = vertices[verts[1][0]]
+        v2 = vertices[verts[2][0]]
+        face_normals_geom.append(face_normal(v0, v1, v2))
+
+    # Vertex normals from file-supplied `vn` if every vertex of every
+    # triangle references one; otherwise computed from smoothing groups.
+    have_file_vns = all(
+        all(vn_idx >= 0 and vn_idx < len(file_normals) for _, _, vn_idx in v)
+        for _, v in triangles)
+    if have_file_vns:
+        vertex_normals = []
+        for _, verts in triangles:
+            for _, _, ni in verts:
+                vertex_normals.append(file_normals[ni])
+    else:
+        vertex_normals = compute_vertex_normals(vertices, triangles,
+                                                face_normals_geom)
+
     positions = []
     uvs = []
-    normals = []
+    face_normals_out = []
+    vertex_normals_out = []
 
-    for tri in triangles:
-        verts = []
-        for vi, ti in tri:
+    for ti, (_, verts) in enumerate(triangles):
+        for vi, _, _ in verts:
             v = vertices[vi]
-            verts.append(v)
-            positions.append(float_to_fp8(v[0]))
-            positions.append(float_to_fp8(v[1]))
-            positions.append(float_to_fp8(v[2]))
+            positions.extend([f88(v[0]), f88(v[1]), f88(v[2])])
 
-        for vi, ti in tri:
-            if ti >= 0 and ti < len(texcoords):
-                uv = texcoords[ti]
+        for _, ti_idx, _ in verts:
+            if 0 <= ti_idx < len(texcoords):
+                uv = texcoords[ti_idx]
             else:
                 uv = (0.0, 0.0)
-            uvs.append(float_to_fp8(uv[0]))
-            uvs.append(float_to_fp8(uv[1]))
+            uvs.extend([f88(uv[0]), f88(uv[1])])
 
-        n = compute_normal(verts[0], verts[1], verts[2])
-        normals.append(float_to_fp8(n[0]))
-        normals.append(float_to_fp8(n[1]))
-        normals.append(float_to_fp8(n[2]))
+        n = face_normals_geom[ti]
+        face_normals_out.extend([f88(n[0]), f88(n[1]), f88(n[2])])
+
+    for n in vertex_normals:
+        vertex_normals_out.extend([f88(n[0]), f88(n[1]), f88(n[2])])
 
     with open(out_path, "wb") as f:
         f.write(struct.pack("<i", num_triangles))
@@ -118,15 +214,19 @@ def convert(obj_path, out_path):
             f.write(struct.pack("<i", v))
         for v in uvs:
             f.write(struct.pack("<i", v))
-        for v in normals:
+        for v in face_normals_out:
+            f.write(struct.pack("<i", v))
+        for v in vertex_normals_out:
             f.write(struct.pack("<i", v))
 
-    print(f"{obj_path} -> {out_path}: {num_triangles} triangles")
+    src = "file vns" if have_file_vns else "smoothing groups"
+    print("%s -> %s: %d triangles (%s)"
+          % (obj_path, out_path, num_triangles, src))
 
 
 def main():
     if len(sys.argv) != 3:
-        print(f"Usage: {sys.argv[0]} input.obj output.mdl", file=sys.stderr)
+        print("Usage: %s input.obj output.mdl" % sys.argv[0], file=sys.stderr)
         sys.exit(1)
     convert(sys.argv[1], sys.argv[2])
 

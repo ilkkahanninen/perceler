@@ -43,11 +43,23 @@ int backface3d(const int *n, const int *v);
 
 /* Z-buffered flat-shaded triangle rasterizer.
  * (x0,y0) etc. are screen-space integer coords; z values are the
- * triangle's pre-projection view-space z (Q8.8) used for 1/z depth. */
-void fill_triangle_z(unsigned char *buf, unsigned short *zb,
-                     int x0, int y0, int z0,
-                     int x1, int y1, int z1,
-                     int x2, int y2, int z2,
-                     unsigned char color);
+ * triangle's pre-projection view-space z (Q8.8) used for 1/z depth.
+ * Every covered pixel that wins the depth test takes `color`. */
+void fill_triangle_flat(unsigned char *buf, unsigned short *zb,
+                        int x0, int y0, int z0,
+                        int x1, int y1, int z1,
+                        int x2, int y2, int z2,
+                        unsigned char color);
+
+/* Z-buffered Gouraud-shaded triangle rasterizer.
+ * Same parameters as fill_triangle_flat plus a per-vertex 0..255
+ * intensity (i0/i1/i2) that is linearly interpolated across the
+ * triangle and written as the pixel value. With a greyscale palette
+ * this gives smooth shading; with a colour ramp it gives smooth
+ * tinting between the three vertices. */
+void fill_triangle_gouraud(unsigned char *buf, unsigned short *zb,
+                           int x0, int y0, int z0, int i0,
+                           int x1, int y1, int z1, int i1,
+                           int x2, int y2, int z2, int i2);
 
 #endif
