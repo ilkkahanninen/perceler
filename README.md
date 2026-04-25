@@ -219,7 +219,7 @@ Load it at runtime with `font_load(ASSET_MYSTYLE_FNT)` and pair with `font_free(
 
 Files placed directly in `assets/` are packed as-is. All assets end up in `build/demo.dat`, and `src/assets.h` is regenerated with `ASSET_*` constants (filename uppercased, dots/hyphens become underscores).
 
-See header files for API usage: `bitmap.h`, `model.h`, `math.h`, `draw.h`, `font.h`, `palette.h`, `polyhedron.h`, `tween.h`.
+See header files for API usage: `bitmap.h`, `model.h`, `math.h`, `draw.h`, `fft.h`, `font.h`, `palette.h`, `polyhedron.h`, `tween.h`.
 
 ## Syncing effects to music
 
@@ -264,7 +264,26 @@ For continuous music-reactive effects (intensity that follows a frequency band r
 python3 tools/wav2fft.py build/song.wav assets/song_kick.fft --low 60 --high 200
 ```
 
-`wav2fft.py` peak-normalises the WAV, computes a windowed FFT for every frame (60 fps default), sums bin magnitudes inside `[--low, --high]` Hz, then re-normalises across the whole track to 0..255 — one byte per frame, no header. File length equals the frame count. Drop the resulting `.fft` into `assets/` and read it byte-by-byte from a scene using `ctx->timeline_frame`. Stack multiple bands (e.g. one for bass, one for hats) into separate `.fft` files.
+`wav2fft.py` peak-normalises the WAV, computes a windowed FFT for every frame (60 fps default), sums bin magnitudes inside `[--low, --high]` Hz, then re-normalises across the whole track to 0..255 — one byte per frame, no header. File length equals the frame count.
+
+Drop the resulting `.fft` into `assets/` and read it from a scene with `fft.h`:
+
+```c
+#include "utils/fft.h"
+
+static FFTTrack *kick;
+
+static void my_setup(void) { kick = fft_load(ASSET_SONG_KICK_FFT); }
+static void my_shutdown(void) { fft_free(kick); }
+
+static void my_render(const RenderContext *ctx)
+{
+  unsigned char e = fft_at(kick, ctx->timeline_frame);
+  /* drive intensity, brightness, scale, etc. from `e` (0..255) */
+}
+```
+
+Stack multiple bands (e.g. one for bass, one for hats) into separate `.fft` files and load them as separate tracks.
 
 ## Adding a new scene
 
