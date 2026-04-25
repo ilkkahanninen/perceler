@@ -219,7 +219,7 @@ Load it at runtime with `font_load(ASSET_MYSTYLE_FNT)` and pair with `font_free(
 
 Files placed directly in `assets/` are packed as-is. All assets end up in `build/demo.dat`, and `src/assets.h` is regenerated with `ASSET_*` constants (filename uppercased, dots/hyphens become underscores).
 
-See header files for API usage: `bitmap.h`, `model.h`, `math.h`, `draw.h`, `fft.h`, `font.h`, `palette.h`, `polyhedron.h`, `tween.h`.
+See header files for API usage: `bitmap.h`, `model.h`, `math.h`, `draw.h`, `fft.h`, `font.h`, `palette.h`, `polyhedron.h`, `render3d.h`, `tween.h`.
 
 ## Syncing effects to music
 
