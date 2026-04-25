@@ -12,16 +12,18 @@
 #include "utils/math.h"
 #include "utils/model.h"
 #include "utils/polyhedron.h"
+#include "utils/render3d.h"
 
 #include <stdlib.h>
 #include <string.h>
 #include <vga.h>
 
-#define CAM_Z      INT_TO_FP(4)
-#define NEAR_Z     (FP_ONE >> 2)
-#define CX         160
-#define CY         100
-#define PROJ_SCALE INT_TO_FP(200)
+static const Camera3D camera = {
+    INT_TO_FP(4),    /* cam_z */
+    FP_ONE >> 2,     /* near_z */
+    INT_TO_FP(200),  /* proj_scale */
+    160, 100         /* cx, cy */
+};
 
 #define NUM_SHAPES         4
 #define FRAMES_PER_SHAPE 180 /* ~3 s at 60 fps */
@@ -97,42 +99,6 @@ static void polyhedra_shutdown(void)
   max_tris = 0;
 }
 
-static int project(int x, int y, int z, int *sx, int *sy)
-{
-  int s;
-  if (z < NEAR_Z)
-    return 0;
-  s = FP_DIV(PROJ_SCALE, z);
-  *sx = CX + FP_TO_INT(FP_MUL(x, s));
-  *sy = CY - FP_TO_INT(FP_MUL(y, s));
-  return 1;
-}
-
-/* Rotate the model's vertices around Y then X (same pattern as
- * model_viewer) and push them forward so they sit in front of the
- * camera. Result is written to `transformed`. */
-static void transform_model(const Model *m, unsigned int frame)
-{
-  unsigned char ay = (unsigned char)(frame);
-  unsigned char ax = (unsigned char)(frame >> 1);
-  int sin_y = sin8(ay), cos_y = cos8(ay);
-  int sin_x = sin8(ax), cos_x = cos8(ax);
-  const int *src = m->positions;
-  int *dst = transformed;
-  int i, num_verts = m->num_triangles * 3;
-
-  for (i = 0; i < num_verts; i++, src += 3, dst += 3)
-  {
-    int x = src[0], y = src[1], z = src[2];
-    int rx = FP_MUL(x, cos_y) + FP_MUL(z, sin_y);
-    int ry = y;
-    int rz = FP_MUL(-x, sin_y) + FP_MUL(z, cos_y);
-    dst[0] = rx;
-    dst[1] = FP_MUL(ry, cos_x) - FP_MUL(rz, sin_x);
-    dst[2] = FP_MUL(ry, sin_x) + FP_MUL(rz, cos_x) + CAM_Z;
-  }
-}
-
 static void polyhedra_render(const RenderContext *ctx)
 {
   unsigned char *backbuffer = ctx->backbuffer;
@@ -150,16 +116,18 @@ static void polyhedra_render(const RenderContext *ctx)
   if (m && transformed)
   {
     num_tris = m->num_triangles;
-    transform_model(m, frame);
+    transform_points(transformed, m->positions, num_tris * 3,
+                     (unsigned char)frame, (unsigned char)(frame >> 1),
+                     camera.cam_z);
 
     for (i = 0; i < num_tris; i++)
     {
       int *v = transformed + i * 9;
       int sx0, sy0, sx1, sy1, sx2, sy2;
 
-      if (!project(v[0], v[1], v[2], &sx0, &sy0) ||
-          !project(v[3], v[4], v[5], &sx1, &sy1) ||
-          !project(v[6], v[7], v[8], &sx2, &sy2))
+      if (!project3d(&camera, v[0], v[1], v[2], &sx0, &sy0) ||
+          !project3d(&camera, v[3], v[4], v[5], &sx1, &sy1) ||
+          !project3d(&camera, v[6], v[7], v[8], &sx2, &sy2))
         continue;
 
       draw_line(backbuffer, sx0, sy0, sx1, sy1, 200);
