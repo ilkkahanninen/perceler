@@ -137,6 +137,65 @@ else
     esac
 fi
 
+# --- Install xmp CLI + numpy (used by FFT analysis: xm -> wav -> .fft) ---
+NEED_XMP=0
+NEED_NUMPY=0
+command -v xmp &> /dev/null || NEED_XMP=1
+python3 -c "import numpy" &> /dev/null || NEED_NUMPY=1
+
+if [ "$NEED_XMP" = "0" ] && [ "$NEED_NUMPY" = "0" ]; then
+    echo "FFT analysis deps already installed (xmp + numpy)."
+else
+    echo ""
+    echo "FFT analysis pipeline (tools/xm2wav.sh + tools/wav2fft.py) needs:"
+    [ "$NEED_XMP" = "1" ]   && echo "  - xmp   (libxmp CLI, renders XM modules to WAV)"
+    [ "$NEED_NUMPY" = "1" ] && echo "  - numpy (Python FFT)"
+    echo "Use this to drive scenes from per-frame band energies. Skip if you"
+    echo "don't plan to do music-reactive effects."
+    read -r -p "Install missing FFT-analysis deps? [y/N] " REPLY
+    case "$REPLY" in
+        [yY]|[yY][eE][sS])
+            if [ "$NEED_XMP" = "1" ]; then
+                case "$(uname -s)" in
+                    Darwin)
+                        if command -v brew &> /dev/null; then
+                            brew install xmp
+                        else
+                            echo "WARNING: Homebrew not found. Install xmp manually:"
+                            echo "  https://xmp.sourceforge.net/"
+                        fi
+                        ;;
+                    Linux)
+                        echo "WARNING: Please install xmp for your distribution:"
+                        echo "  sudo apt install xmp / sudo dnf install xmp"
+                        ;;
+                esac
+            fi
+            if [ "$NEED_NUMPY" = "1" ]; then
+                case "$(uname -s)" in
+                    Darwin)
+                        if command -v brew &> /dev/null; then
+                            brew install numpy
+                        else
+                            echo "WARNING: Homebrew not found. Install numpy manually:"
+                            echo "  python3 -m pip install --user --break-system-packages numpy"
+                        fi
+                        ;;
+                    Linux)
+                        echo "Please install numpy via your package manager, e.g.:"
+                        echo "  sudo apt install python3-numpy"
+                        echo "  sudo dnf install python3-numpy"
+                        echo "Or in a venv: python3 -m venv .venv && . .venv/bin/activate && pip install numpy"
+                        ;;
+                esac
+            fi
+            ;;
+        *)
+            echo "Skipped. tools/xm2wav.sh + tools/wav2fft.py will fail until installed."
+            ;;
+    esac
+fi
+
 # --- Install ffmpeg (used by `make capture`) ---
 if command -v ffmpeg &> /dev/null; then
     echo "ffmpeg already installed: $(which ffmpeg)"
