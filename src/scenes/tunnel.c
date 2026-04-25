@@ -11,6 +11,7 @@
 #include <math.h>
 #include <vga.h>
 #include <stdlib.h>
+#include "utils/fft.h"
 #include "utils/font.h"
 #include "utils/palette.h"
 
@@ -32,6 +33,10 @@ static unsigned char texture[TEX_SIZE * TEX_SIZE];
 static Palette pal_warm;
 static Palette pal_cool;
 static Palette pal_current;
+
+/* Per-frame snare-band energy track, used to flash the palette white
+ * on every drum hit. */
+static FFTTrack *snare;
 
 static void generate_texture(void)
 {
@@ -98,6 +103,7 @@ static void tunnel_setup(void)
 {
   generate_texture();
   generate_tables();
+  snare = fft_load(ASSET_SNARE_FFT);
 }
 
 static void tunnel_init(const RenderContext *ctx)
@@ -116,6 +122,8 @@ static void tunnel_shutdown(void)
   free(dist_tab);
   angle_tab = 0;
   dist_tab = 0;
+  fft_free(snare);
+  snare = 0;
 }
 
 static void tunnel_render(const RenderContext *ctx)
@@ -145,6 +153,15 @@ static void tunnel_render(const RenderContext *ctx)
   {
     int t = 128 + (int)(128.0 * sin(frame * (2.0 * PI / 120.0)));
     palette_lerp(&pal_current, &pal_warm, &pal_cool, t);
+  }
+
+  /* Pulse the blended palette toward white on every kick. The .fft track
+   * was generated from the whole song, so query by absolute timeline
+   * frame. Energies are 0..255; palette_fade reads them as a 0..256
+   * fade factor with clamping, which maps cleanly here. */
+  {
+    int e = fft_at(snare, ctx->timeline_frame);
+    palette_fade(&pal_current, &pal_current, 63, 63, 63, e);
   }
 
   vga_vsync();
