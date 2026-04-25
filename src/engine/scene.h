@@ -5,11 +5,19 @@
 
 typedef struct
 {
+  unsigned char *backbuffer;
+  unsigned int frame;          /* frames since this scene started */
+  unsigned long ms;            /* ms since this scene started */
+  unsigned int timeline_frame; /* frames since the timeline started */
+  unsigned long timeline_ms;   /* ms since the timeline started */
+} RenderContext;
+
+typedef struct
+{
   void (*setup)(void);
-  void (*init)(unsigned char *backbuffer);
+  void (*init)(const RenderContext *ctx);
   void (*shutdown)(void);
-  void (*render)(unsigned char *backbuffer, unsigned int frame,
-                 unsigned int timeline_frame);
+  void (*render)(const RenderContext *ctx);
 } Scene;
 
 typedef struct

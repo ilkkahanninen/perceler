@@ -61,9 +61,9 @@ static void model_viewer_setup(void)
   init_recip_tab();
 }
 
-static void model_viewer_init(unsigned char *backbuffer)
+static void model_viewer_init(const RenderContext *ctx)
 {
-  (void)backbuffer;
+  (void)ctx;
   set_palette();
 }
 
@@ -150,16 +150,14 @@ static void transform_normals(unsigned int frame)
 
 /* --- Wireframe renderer --- */
 
-static void model_viewer_wireframe_render(unsigned char *backbuffer,
-                                          unsigned int frame,
-                                          unsigned int timeline_frame)
+static void model_viewer_wireframe_render(const RenderContext *ctx)
 {
+  unsigned char *backbuffer = ctx->backbuffer;
   int i;
-  (void)timeline_frame;
 
   memset(backbuffer, 0, VGA_SIZE);
-  transform_vertices(frame);
-  transform_normals(frame);
+  transform_vertices(ctx->frame);
+  transform_normals(ctx->frame);
 
   for (i = 0; i < num_tris; i++)
   {
@@ -333,16 +331,14 @@ static void fill_triangle_z(unsigned char *buf, unsigned short *zb,
 
 /* --- Flat-shaded renderer --- */
 
-static void model_viewer_flatshade_render(unsigned char *backbuffer,
-                                          unsigned int frame,
-                                          unsigned int timeline_frame)
+static void model_viewer_flatshade_render(const RenderContext *ctx)
 {
+  unsigned char *backbuffer = ctx->backbuffer;
   int i;
-  (void)timeline_frame;
 
   memset(backbuffer, 0, VGA_SIZE);
-  transform_vertices(frame);
-  transform_normals(frame);
+  transform_vertices(ctx->frame);
+  transform_normals(ctx->frame);
   memset(zbuffer, 0, VGA_SIZE * sizeof(unsigned short));
 
   for (i = 0; i < num_tris; i++)

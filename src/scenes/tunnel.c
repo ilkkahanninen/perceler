@@ -100,9 +100,9 @@ static void tunnel_setup(void)
   generate_tables();
 }
 
-static void tunnel_init(unsigned char *backbuffer)
+static void tunnel_init(const RenderContext *ctx)
 {
-  (void)backbuffer;
+  (void)ctx;
   build_palettes();
   /* Seed pal_current so the very first frame isn't drawn against the
    * zero-initialised (all-black) palette. */
@@ -118,14 +118,14 @@ static void tunnel_shutdown(void)
   dist_tab = 0;
 }
 
-static void tunnel_render(unsigned char *backbuffer, unsigned int frame,
-                          unsigned int timeline_frame)
+static void tunnel_render(const RenderContext *ctx)
 {
+  unsigned char *backbuffer = ctx->backbuffer;
+  unsigned int frame = ctx->frame;
   int x, y;
   unsigned char shift_u = frame * 2;
   unsigned char shift_v = frame;
   unsigned char *dst = backbuffer;
-  (void)timeline_frame;
 
   for (y = 0; y < VGA_HEIGHT; y++)
   {

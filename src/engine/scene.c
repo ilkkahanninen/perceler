@@ -120,19 +120,24 @@ static void run_timeline_realtime(const TimelineEntry *timeline,
 
   while (!key_down(KEY_ESC))
   {
-    if (need_init)
-    {
-      current_scene->scene->init(backbuffer);
-      need_init = 0;
-    }
-
     audio_update();
 
-    elapsed = audio_music_ms() - current_scene->music_offset_ms;
-    current_scene->scene->render(
-        backbuffer,
-        (unsigned int)((elapsed * 61) >> 10),
-        (unsigned int)(((current_scene->music_offset_ms + elapsed) * 61) >> 10));
+    {
+      RenderContext ctx;
+      elapsed = audio_music_ms() - current_scene->music_offset_ms;
+      ctx.backbuffer = backbuffer;
+      ctx.ms = elapsed;
+      ctx.timeline_ms = current_scene->music_offset_ms + elapsed;
+      ctx.frame = (unsigned int)((ctx.ms * 61) >> 10);
+      ctx.timeline_frame = (unsigned int)((ctx.timeline_ms * 61) >> 10);
+
+      if (need_init)
+      {
+        current_scene->scene->init(&ctx);
+        need_init = 0;
+      }
+      current_scene->scene->render(&ctx);
+    }
 
     audio_update();
 
@@ -220,19 +225,24 @@ static void run_timeline_offline(const TimelineEntry *timeline,
     unsigned long elapsed;
     int samples;
 
-    if (need_init)
-    {
-      current_scene->scene->init(backbuffer);
-      need_init = 0;
-    }
-
     virtual_ms = frames * 1000UL / 60UL;
     elapsed = virtual_ms - current_scene->music_offset_ms;
 
-    current_scene->scene->render(
-        backbuffer,
-        (unsigned int)((elapsed * 61) >> 10),
-        (unsigned int)((virtual_ms * 61) >> 10));
+    {
+      RenderContext ctx;
+      ctx.backbuffer = backbuffer;
+      ctx.ms = elapsed;
+      ctx.timeline_ms = virtual_ms;
+      ctx.frame = (unsigned int)((elapsed * 61) >> 10);
+      ctx.timeline_frame = (unsigned int)((virtual_ms * 61) >> 10);
+
+      if (need_init)
+      {
+        current_scene->scene->init(&ctx);
+        need_init = 0;
+      }
+      current_scene->scene->render(&ctx);
+    }
 
     capture_frame(backbuffer);
 

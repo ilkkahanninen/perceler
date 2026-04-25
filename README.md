@@ -242,15 +242,14 @@ To react to triggers in a scene, use `SampleTrack` from `utils/timing.h`:
 
 static SampleTrack kick = SAMPLE_TRACK(sample_8_frames, SAMPLE_8_FRAMES_COUNT);
 
-static void my_render(unsigned char *buf, unsigned int frame,
-                      unsigned int timeline_frame)
+static void my_render(const RenderContext *ctx)
 {
-  if (sample_triggered(&kick, timeline_frame))
+  if (sample_triggered(&kick, ctx->timeline_frame))
     /* kick drum hit — flash, shake, etc. */;
 }
 ```
 
-`sample_triggered()` returns 1 once per trigger when `timeline_frame` reaches the next entry in the array. The `timeline_frame` parameter passed to render functions corresponds to the absolute position in the full demo timeline, matching the frame numbers in the generated header.
+`sample_triggered()` returns 1 once per trigger when `ctx->timeline_frame` reaches the next entry in the array. `RenderContext` (defined in `engine/scene.h`) carries the backbuffer plus four time fields — `frame`/`ms` (since this scene started) and `timeline_frame`/`timeline_ms` (absolute position in the full demo). The `timeline_*` values match the frame numbers in the generated header.
 
 ## Adding a new scene
 

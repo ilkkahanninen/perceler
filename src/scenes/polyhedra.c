@@ -75,9 +75,9 @@ static void polyhedra_setup(void)
     transformed = (int *)malloc((unsigned)max_tris * 9 * sizeof(int));
 }
 
-static void polyhedra_init(unsigned char *backbuffer)
+static void polyhedra_init(const RenderContext *ctx)
 {
-  (void)backbuffer;
+  (void)ctx;
   set_palette();
 }
 
@@ -133,14 +133,14 @@ static void transform_model(const Model *m, unsigned int frame)
   }
 }
 
-static void polyhedra_render(unsigned char *backbuffer, unsigned int frame,
-                             unsigned int timeline_frame)
+static void polyhedra_render(const RenderContext *ctx)
 {
+  unsigned char *backbuffer = ctx->backbuffer;
+  unsigned int frame = ctx->frame;
   int shape_idx;
   const Model *m;
   int num_tris;
   int i;
-  (void)timeline_frame;
 
   shape_idx = (int)((frame / FRAMES_PER_SHAPE) % NUM_SHAPES);
   m = models[shape_idx];

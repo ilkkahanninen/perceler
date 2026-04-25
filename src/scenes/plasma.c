@@ -14,7 +14,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <vga.h>
-#include "../utils/timing.h"
 #include "../utils/tween.h"
 #include "utils/font.h"
 
@@ -27,10 +26,10 @@ static unsigned char *overlay; /* full-screen bitmap layer; 0 = transparent */
  *   hold near the left margin (TWEEN_STEP holds the value until the next key),
  *   slide out to the right with an ease-in accelerating exit. */
 static const Keyframe title_x_keys[] = {
-    {    0, INT_TO_FP(-80), TWEEN_EASE_OUT}, /* off-screen left */
-    { 1200, INT_TO_FP(  6), TWEEN_STEP    }, /* slid in, pinned */
-    { 5000, INT_TO_FP(  6), TWEEN_EASE_IN }, /* still pinned; start accel */
-    { 6200, INT_TO_FP(330), TWEEN_LINEAR  }, /* off-screen right */
+    {0, INT_TO_FP(-80), TWEEN_EASE_OUT},  /* off-screen left */
+    {1200, INT_TO_FP(6), TWEEN_STEP},     /* slid in, pinned */
+    {5000, INT_TO_FP(6), TWEEN_EASE_IN},  /* still pinned; start accel */
+    {6200, INT_TO_FP(330), TWEEN_LINEAR}, /* off-screen right */
 };
 static const Tween title_x = TWEEN(title_x_keys);
 
@@ -103,9 +102,9 @@ static void plasma_set_palette(void)
   }
 }
 
-static void plasma_init(unsigned char *backbuffer)
+static void plasma_init(const RenderContext *ctx)
 {
-  (void)backbuffer;
+  (void)ctx;
   palette_apply(&image->palette);
   plasma_set_palette();
 }
@@ -120,15 +119,15 @@ static void plasma_shutdown(void)
   overlay = NULL;
 }
 
-static void plasma_render(unsigned char *backbuffer, unsigned int frame,
-                          unsigned int timeline_frame)
+static void plasma_render(const RenderContext *ctx)
 {
+  unsigned char *backbuffer = ctx->backbuffer;
+  unsigned int frame = ctx->frame;
   int x, y;
   unsigned char *dst = backbuffer;
   unsigned int f2 = frame * 3;
   const unsigned char *rad = radial_tab;
   const unsigned char *ovl = overlay;
-  (void)timeline_frame;
 
   for (y = 0; y < VGA_HEIGHT; y++)
   {
@@ -162,7 +161,7 @@ static void plasma_render(unsigned char *backbuffer, unsigned int frame,
 
   /* Slide the title via a keyframed tween. */
   font_draw(&font_default, backbuffer,
-            tween_at_int(&title_x, FRAME_MS(frame)), 4, 255, "plasma.c");
+            tween_at_int(&title_x, ctx->ms), 4, 255, "plasma.c");
 
   vga_vsync();
   vga_blit(backbuffer);
