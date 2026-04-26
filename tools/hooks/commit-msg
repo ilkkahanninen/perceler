@@ -2,7 +2,7 @@
 # commit-msg hook: enforce the project's commit-prefix conventions.
 #
 # Accepts commits whose first line starts with one of:
-#   engine:  utils:  tools:  scene:  demo:  assets:
+#   engine:  utils:  tools:  demo:
 #
 # Also verifies that the staged files belong to directories associated
 # with that prefix. Use `force <prefix>:` to bypass the path check.
@@ -34,9 +34,7 @@ Commit rejected: message must start with a prefix.
   engine:   src/engine/, Makefile
   utils:    src/utils/, src/scenes/utils/
   tools:    tools/, .vscode/, repo-root files (Makefile, setup.sh, etc.)
-  scene:    src/scenes/*.c, src/scenes/*.h (reusable scene changes)
-  demo:     src/scenes/*.c, src/scenes/*.h, src/demo.{c,h} (demo-specific)
-  assets:   assets/, asset-sources/
+  demo:     src/scenes/, src/demo.{c,h}, assets/, asset-sources/
 
 Bypass path check:  force <prefix>: <subject>
 Uninstall hook:     git config --unset core.hooksPath
@@ -46,10 +44,10 @@ fi
 
 TAG="${BASH_REMATCH[1]}"
 case "$TAG" in
-  engine|utils|tools|scene|demo|assets) ;;
+  engine|utils|tools|demo) ;;
   *)
     echo "Commit rejected: unknown prefix '$TAG:'" >&2
-    echo "Valid prefixes: engine, utils, tools, scene, demo, assets" >&2
+    echo "Valid prefixes: engine, utils, tools, demo" >&2
     exit 1
     ;;
 esac
@@ -85,17 +83,13 @@ matches_prefix() {
       [[ "$file" == tools/* ]] || [[ "$file" == .vscode/* ]] \
         || [[ "$file" != */* ]]
       ;;
-    scene)
-      # Reusable scene code only — not demo-specific files, not utils.
-      [[ "$file" == src/scenes/*.c ]] || [[ "$file" == src/scenes/*.h ]] \
-        && [[ "$file" != src/scenes/utils/* ]]
-      ;;
     demo)
-      [[ "$file" == src/scenes/*.c ]] || [[ "$file" == src/scenes/*.h ]] \
-        || [[ "$file" == src/demo.c ]] || [[ "$file" == src/demo.h ]]
-      ;;
-    assets)
-      [[ "$file" == assets/* ]] || [[ "$file" == asset-sources/* ]]
+      # Scenes, top-level demo definition, and packed/source assets;
+      # excludes scene utils.
+      { [[ "$file" == src/scenes/*.c ]] || [[ "$file" == src/scenes/*.h ]] \
+          || [[ "$file" == src/demo.c ]] || [[ "$file" == src/demo.h ]] \
+          || [[ "$file" == assets/* ]] || [[ "$file" == asset-sources/* ]]; } \
+        && [[ "$file" != src/scenes/utils/* ]]
       ;;
   esac
 }

@@ -234,8 +234,8 @@ if git rev-parse --git-dir >/dev/null 2>&1; then
     else
         echo ""
         echo "Install the commit-msg hook? It enforces the prefix convention"
-        echo "(engine:/utils:/tools:/scene:/demo:/assets:) and checks that staged"
-        echo "files match the prefix. Helpful when you want to later cherry-pick"
+        echo "(engine:/utils:/tools:/demo:) and checks that staged files"
+        echo "match the prefix. Helpful when you want to later cherry-pick"
         echo "reusable commits back to main. Skip if you're just hacking on a fork."
         read -r -p "Install hook? [y/N] " REPLY
         case "$REPLY" in
