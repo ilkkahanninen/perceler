@@ -443,12 +443,14 @@ void fill_triangle_textured(unsigned char *buf, unsigned short *zb,
   int y, half;
   const unsigned char *texels = tex->pixels;
   int log2_size = tex->log2_size;
-  int uv_mask = tex->size - 1;
-  /* UVs are Q8.8 where 256 = one full wrap. The integer part is the
-   * texel index for a 256-wide texture; for smaller textures drop
-   * (8 - log2_size) low bits so 256 still maps to one full wrap.
-   * Inside the inner loop we keep an extra 8 fractional bits (Q?.16),
-   * so add 8 to the shift when sampling. */
+  int uv_max = tex->size - 1;
+  /* UVs are Q8.8 where 256 = the right/bottom edge of the texture.
+   * The integer part is the texel index for a 256-wide texture; for
+   * smaller textures drop (8 - log2_size) low bits so 256 still maps
+   * to one full edge. Inside the inner loop we keep an extra 8
+   * fractional bits (Q?.16), so add 8 to the shift when sampling.
+   * Samples are clamped to [0, uv_max] — the texture is treated as
+   * non-tileable so per-pixel rounding can't flip across a wrap. */
   int uv_shift = 8 - log2_size;
 
   if (!recip_tab_ready)
@@ -489,8 +491,10 @@ void fill_triangle_textured(unsigned char *buf, unsigned short *zb,
       int idx = y0 * VGA_WIDTH + x0;
       if (iz0 > zb[idx])
       {
-        int tu = (u0 >> uv_shift) & uv_mask;
-        int tv = (v0 >> uv_shift) & uv_mask;
+        int tu = u0 >> uv_shift;
+        int tv = v0 >> uv_shift;
+        if (tu < 0) tu = 0; else if (tu > uv_max) tu = uv_max;
+        if (tv < 0) tv = 0; else if (tv > uv_max) tv = uv_max;
         zb[idx] = (unsigned short)iz0;
         buf[idx] = texels[(tv << log2_size) + tu];
       }
@@ -617,8 +621,10 @@ void fill_triangle_textured(unsigned char *buf, unsigned short *zb,
 
             if (iz_curr > zb[off + x])
             {
-              int tu = (u_q816 >> (uv_shift + 8)) & uv_mask;
-              int tv = (v_q816 >> (uv_shift + 8)) & uv_mask;
+              int tu = u_q816 >> (uv_shift + 8);
+              int tv = v_q816 >> (uv_shift + 8);
+              if (tu < 0) tu = 0; else if (tu > uv_max) tu = uv_max;
+              if (tv < 0) tv = 0; else if (tv > uv_max) tv = uv_max;
               zb[off + x] = (unsigned short)iz_curr;
               buf[off + x] = texels[(tv << log2_size) + tu];
             }
@@ -643,6 +649,171 @@ void fill_triangle_textured(unsigned char *buf, unsigned short *zb,
   }
 }
 
+void fill_triangle_textured_affine(unsigned char *buf, unsigned short *zb,
+                                   int x0, int y0, int z0, int u0, int v0,
+                                   int x1, int y1, int z1, int u1, int v1,
+                                   int x2, int y2, int z2, int u2, int v2,
+                                   const Texture *tex)
+{
+  int iz0, iz1, iz2;
+  int dy_long, dx_long, diz_long, du_long, dv_long;
+  int y, half;
+  const unsigned char *texels = tex->pixels;
+  int log2_size = tex->log2_size;
+  int uv_max = tex->size - 1;
+  int uv_shift = 8 - log2_size;
+
+  if (!recip_tab_ready)
+    init_recip_tab();
+
+  /* Sort by Y; UVs travel with each vertex. */
+  if (y0 > y1)
+  {
+    SWAP(x0, x1); SWAP(y0, y1); SWAP(z0, z1);
+    SWAP(u0, u1); SWAP(v0, v1);
+  }
+  if (y1 > y2)
+  {
+    SWAP(x1, x2); SWAP(y1, y2); SWAP(z1, z2);
+    SWAP(u1, u2); SWAP(v1, v2);
+  }
+  if (y0 > y1)
+  {
+    SWAP(x0, x1); SWAP(y0, y1); SWAP(z0, z1);
+    SWAP(u0, u1); SWAP(v0, v1);
+  }
+
+  iz0 = (z0 > 0) ? (int)((1L << 20) / z0) : 0xFFFF;
+  iz1 = (z1 > 0) ? (int)((1L << 20) / z1) : 0xFFFF;
+  iz2 = (z2 > 0) ? (int)((1L << 20) / z2) : 0xFFFF;
+
+  /* 1-pixel early-out (degenerate). */
+  if (y0 == y2 && x0 == x1 && x1 == x2)
+  {
+    if (x0 >= 0 && x0 < VGA_WIDTH && y0 >= 0 && y0 < VGA_HEIGHT)
+    {
+      int idx = y0 * VGA_WIDTH + x0;
+      if (iz0 > zb[idx])
+      {
+        int tu = u0 >> uv_shift;
+        int tv = v0 >> uv_shift;
+        if (tu < 0) tu = 0; else if (tu > uv_max) tu = uv_max;
+        if (tv < 0) tv = 0; else if (tv > uv_max) tv = uv_max;
+        zb[idx] = (unsigned short)iz0;
+        buf[idx] = texels[(tv << log2_size) + tu];
+      }
+    }
+    return;
+  }
+
+  if (y0 == y2 || y2 < 0 || y0 >= VGA_HEIGHT)
+    return;
+
+  dy_long = y2 - y0;
+  dx_long = DIV_SHIFTED(x2 - x0, dy_long);
+  diz_long = DIV_SHIFTED(iz2 - iz0, dy_long);
+  /* UV inputs are Q8.8; shift up by 8 to walk in Q8.16 along the edge. */
+  du_long = ((u2 - u0) << 8) / dy_long;
+  dv_long = ((v2 - v0) << 8) / dy_long;
+
+  for (half = 0; half < 2; half++)
+  {
+    int ya, yb, dx_short, diz_short, du_short, dv_short;
+    int xl, xr, izl, izr, ul, ur, vl, vr;
+
+    if (half == 0)
+    {
+      int dy = y1 - y0;
+      ya = y0;
+      yb = y1;
+      dx_short = dy ? DIV_SHIFTED(x1 - x0, dy) : 0;
+      diz_short = dy ? DIV_SHIFTED(iz1 - iz0, dy) : 0;
+      du_short = dy ? ((u1 - u0) << 8) / dy : 0;
+      dv_short = dy ? ((v1 - v0) << 8) / dy : 0;
+      xl = x0 << 8; xr = xl;
+      izl = iz0 << 8; izr = izl;
+      ul = u0 << 8; ur = ul;
+      vl = v0 << 8; vr = vl;
+    }
+    else
+    {
+      int dy = y2 - y1;
+      ya = y1;
+      yb = y2;
+      dx_short = dy ? DIV_SHIFTED(x2 - x1, dy) : 0;
+      diz_short = dy ? DIV_SHIFTED(iz2 - iz1, dy) : 0;
+      du_short = dy ? ((u2 - u1) << 8) / dy : 0;
+      dv_short = dy ? ((v2 - v1) << 8) / dy : 0;
+      xl = (x0 << 8) + dx_long * (y1 - y0);
+      xr = x1 << 8;
+      izl = (iz0 << 8) + diz_long * (y1 - y0);
+      izr = iz1 << 8;
+      ul = (u0 << 8) + du_long * (y1 - y0);
+      ur = u1 << 8;
+      vl = (v0 << 8) + dv_long * (y1 - y0);
+      vr = v1 << 8;
+    }
+
+    for (y = ya; y < yb; y++)
+    {
+      if (y >= 0 && y < VGA_HEIGHT)
+      {
+        int lx = xl >> 8, rx = xr >> 8;
+        int liz = izl >> 8, riz = izr >> 8;
+        /* Keep UVs in Q8.16 across the span (input precision + 8). */
+        int lu = ul, ru = ur;
+        int lv = vl, rv = vr;
+        int sx, ex, off, x, iz, diz, u_q816, du_q816, v_q816, dv_q816;
+
+        if (lx > rx)
+        {
+          SWAP(lx, rx); SWAP(liz, riz);
+          SWAP(lu, ru); SWAP(lv, rv);
+        }
+
+        sx = lx < 0 ? 0 : lx;
+        ex = rx >= VGA_WIDTH ? VGA_WIDTH - 1 : rx;
+
+        if (sx <= ex)
+        {
+          int span = rx - lx;
+          off = y * VGA_WIDTH;
+          diz = span ? DIV_PLAIN(riz - liz, span) : 0;
+          du_q816 = span ? (ru - lu) / span : 0;
+          dv_q816 = span ? (rv - lv) / span : 0;
+          iz = liz + diz * (sx - lx);
+          u_q816 = lu + du_q816 * (sx - lx);
+          v_q816 = lv + dv_q816 * (sx - lx);
+
+          for (x = sx; x <= ex; x++)
+          {
+            if (iz > zb[off + x])
+            {
+              int tu = u_q816 >> (uv_shift + 8);
+              int tv = v_q816 >> (uv_shift + 8);
+              if (tu < 0) tu = 0; else if (tu > uv_max) tu = uv_max;
+              if (tv < 0) tv = 0; else if (tv > uv_max) tv = uv_max;
+              zb[off + x] = (unsigned short)iz;
+              buf[off + x] = texels[(tv << log2_size) + tu];
+            }
+            iz += diz;
+            u_q816 += du_q816;
+            v_q816 += dv_q816;
+          }
+        }
+      }
+      xl += dx_long;
+      xr += dx_short;
+      izl += diz_long;
+      izr += diz_short;
+      ul += du_long;
+      ur += du_short;
+      vl += dv_long;
+      vr += dv_short;
+    }
+  }
+}
+
 void fill_triangle_textured_gouraud(unsigned char *buf, unsigned short *zb,
                                     int x0, int y0, int z0,
                                     int u0, int v0, int i0,
@@ -660,7 +831,7 @@ void fill_triangle_textured_gouraud(unsigned char *buf, unsigned short *zb,
   const unsigned char *texels = tex->pixels;
   const unsigned char *colormap = cm->map;
   int log2_size = tex->log2_size;
-  int uv_mask = tex->size - 1;
+  int uv_max = tex->size - 1;
   int uv_shift = 8 - log2_size;
 
   if (!recip_tab_ready)
@@ -697,10 +868,13 @@ void fill_triangle_textured_gouraud(unsigned char *buf, unsigned short *zb,
       int idx = y0 * VGA_WIDTH + x0;
       if (iz0 > zb[idx])
       {
-        int tu = (u0 >> uv_shift) & uv_mask;
-        int tv = (v0 >> uv_shift) & uv_mask;
-        int texel = texels[(tv << log2_size) + tu];
+        int tu = u0 >> uv_shift;
+        int tv = v0 >> uv_shift;
+        int texel;
         int level = i0 >> 2;
+        if (tu < 0) tu = 0; else if (tu > uv_max) tu = uv_max;
+        if (tv < 0) tv = 0; else if (tv > uv_max) tv = uv_max;
+        texel = texels[(tv << log2_size) + tu];
         if (level < 0) level = 0;
         else if (level > 63) level = 63;
         zb[idx] = (unsigned short)iz0;
@@ -832,13 +1006,16 @@ void fill_triangle_textured_gouraud(unsigned char *buf, unsigned short *zb,
 
             if (iz_curr > zb[off + x])
             {
-              int tu = (u_q816 >> (uv_shift + 8)) & uv_mask;
-              int tv = (v_q816 >> (uv_shift + 8)) & uv_mask;
-              int texel = texels[(tv << log2_size) + tu];
+              int tu = u_q816 >> (uv_shift + 8);
+              int tv = v_q816 >> (uv_shift + 8);
               /* intensity_q88 / 4 = level (0..63), clamped. */
               int level = i_q88 >> 10;
+              int texel;
+              if (tu < 0) tu = 0; else if (tu > uv_max) tu = uv_max;
+              if (tv < 0) tv = 0; else if (tv > uv_max) tv = uv_max;
               if (level < 0) level = 0;
               else if (level > 63) level = 63;
+              texel = texels[(tv << log2_size) + tu];
               zb[off + x] = (unsigned short)iz_curr;
               buf[off + x] = colormap[(level << 8) | texel];
             }

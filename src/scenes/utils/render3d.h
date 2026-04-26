@@ -91,12 +91,33 @@ void texture_free(Texture *tex);
 /* Z-buffered perspective-correct textured triangle. (x0,y0) etc. are
  * screen-space integer coords; z values are the pre-projection
  * view-space z (Q8.8); (u0,v0) etc. are Q8.8 texture coordinates
- * where 256 == one full texture wrap. */
+ * where 256 == the right/bottom edge of the texture.
+ *
+ * Use this when UVs vary across each triangle and the geometry is
+ * close enough to the camera that affine UV interpolation would swim
+ * visibly. Per-pixel integer rounding can drift the recovered UV by
+ * a few texels even when the inputs are constant — for that case
+ * fill_triangle_textured_affine is exact and faster. */
 void fill_triangle_textured(unsigned char *buf, unsigned short *zb,
                             int x0, int y0, int z0, int u0, int v0,
                             int x1, int y1, int z1, int u1, int v1,
                             int x2, int y2, int z2, int u2, int v2,
                             const Texture *tex);
+
+/* Z-buffered affine textured triangle. Same parameter list as
+ * fill_triangle_textured. UVs are linearly interpolated across the
+ * triangle in screen space — no perspective division.
+ *
+ * Constant UV inputs produce exactly constant samples (no drift),
+ * making this the right choice for sphere-mapped polyhedra and
+ * billboard-style geometry. The classic "swimming" affine artifact
+ * appears on big triangles whose UVs vary in screen-foreshortened
+ * directions; for those, use fill_triangle_textured. */
+void fill_triangle_textured_affine(unsigned char *buf, unsigned short *zb,
+                                   int x0, int y0, int z0, int u0, int v0,
+                                   int x1, int y1, int z1, int u1, int v1,
+                                   int x2, int y2, int z2, int u2, int v2,
+                                   const Texture *tex);
 
 /* Z-buffered perspective-correct textured triangle with Gouraud
  * shading. Same parameters as fill_triangle_textured plus a per-vertex
@@ -115,15 +136,15 @@ void fill_triangle_textured_gouraud(unsigned char *buf, unsigned short *zb,
 
 /*
  * Sphere-map a Q8.8 unit normal vector (camera-space) to Q8.8 texture
- * coordinates where 256 == one full wrap:
+ * coordinates where 256 == the right/bottom edge of the texture:
  *
  *   u = (nx + 1) / 2
  *   v = (1 - ny) / 2     (ny inverted so positive Y maps to the top
  *                         of the texture)
  *
- * `nz` is ignored. The caller feeds the resulting (u, v) into any of
- * the textured rasterizers; the texture itself is treated as a
- * sphere-projected reflection map (top-row = looking up, etc.).
+ * `nz` is ignored. Feed (u, v) into any of the textured rasterizers;
+ * those clamp samples at the texture edges, so the texture is treated
+ * as non-tileable.
  */
 static inline void sphere_map_uv(int nx, int ny, int *out_u, int *out_v)
 {
