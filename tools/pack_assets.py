@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """
-Pack asset files into a single demo.dat and generate a C header
-with offset/length constants for each asset.
+Pack asset files into a single demo.dat and emit a C header with one
+ASSET_<NAME> constant per file (offset + length).
 
-Usage: python3 tools/pack_assets.py <build_dir> <src_dir> <asset_file> [<asset_file> ...]
+Usage:
+    python3 tools/pack_assets.py <build_dir> <src_dir> <asset_file> ...
 
 Generates:
-  <build_dir>/demo.dat   - concatenated asset data
-  <src_dir>/assets.h     - #defines for ASSET_<NAME>_OFFSET and ASSET_<NAME>_LENGTH
+    <build_dir>/demo.dat   concatenated asset payload
+    <src_dir>/assets.h     `Asset` typedef and ASSET_<NAME> constants
 """
 
 import os

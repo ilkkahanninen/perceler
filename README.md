@@ -7,12 +7,13 @@ A demo engine for DOS running in VGA Mode 13h (320×200×256), with XM module pl
 - 60 fps timeline-driven scene runner
 - Sound Blaster 16 and Gravis Ultrasound runtime drivers
 - Bitmap loader (.png, .bmp)
-- 3D model loader (.obj, .3ds)
-- Lots of utilities e.g. bitmap font, palette utilities, parameter tweens, blur, dithering, drawing primitives
+- 3D model loader (.obj, .3ds) with flat / Gouraud / textured rasterizers
+- Procedural Platonic solids with optional per-face extrusion
+- Bitmap font, palette utilities, parameter tweens, blur, dithering, drawing primitives
 - Music sync: discrete sample triggers and continuous FFT band-energy tracks
 - Deterministic offline rendering to MP4
 
-API reference for any subsystem lives in its `.h` file.
+API reference for each subsystem lives in its `.h` file.
 
 ## Quick start
 
@@ -76,8 +77,9 @@ Creates `src/scenes/myeffect.{c,h}` with the `Scene` struct wired up. The Makefi
 
 ```c
 TimelineEntry demo_timeline[] = {
-    {&plasma_scene,   XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
+    {&intro_scene,    XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
     {&myeffect_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    {&outro_scene,    XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
     {0, 0, 0}};
 ```
 
@@ -105,18 +107,18 @@ Custom fonts can be authored visually with `tools/font.py` (template / build sub
 
 Two ways to drive scenes from the song:
 
-- **Discrete sample triggers** — extract the frames where each XM instrument fires:
+- **Discrete sample triggers.** Extract the frames where each XM instrument fires:
 
   ```sh
-  python3 tools/xm_sample_frames.py assets/SONG.XM src/sync.h 8 16
+  python3 tools/xm_sample_frames.py assets/song.xm src/sync.h 8 16
   ```
 
-  Use `SampleTrack` from [utils/timing.h](src/utils/timing.h) to flip on each trigger.
+  Read with `SampleTrack` from [utils/timing.h](src/utils/timing.h).
 
-- **Continuous band energy** — pre-render the song to a per-frame `.fft` track:
+- **Continuous band energy.** Pre-render the song to a per-frame `.fft` track:
 
   ```sh
-  ./tools/xm2wav.sh assets/SONG.XM build/song.wav
+  ./tools/xm2wav.sh assets/song.xm build/song.wav
   python3 tools/wav2fft.py build/song.wav assets/song_kick.fft --low 60 --high 200
   ```
 
@@ -128,23 +130,23 @@ Two ways to drive scenes from the song:
 make capture
 ```
 
-Switches the engine to a deterministic offline render, then `ffmpeg`-encodes the output to `build/demo.mp4`. Edit [`dosbox-capture.conf`](dosbox-capture.conf) to change DOS-side env (output stem, sample rate). The host-side MP4 path is overridable:
+Runs the engine in deterministic offline-render mode and encodes the result to `build/demo.mp4` via `ffmpeg`. Edit [`dosbox-capture.conf`](dosbox-capture.conf) to adjust the DOS-side environment (output stem, sample rate). The host-side MP4 path is overridable on the command line:
 
 ```sh
 make capture CAPTURE_OUT=trailer.mp4
 ```
 
-## VSCode
+## VS Code
 
 Install the recommended **C/C++ Extension Pack**. IntelliSense is preconfigured in `.vscode/c_cpp_properties.json`.
 
 ## Inspecting generated code
 
 ```sh
-tools/wdis.sh src/scenes/utils/blur.c
+tools/wdis.sh src/scenes/myeffect.c
 ```
 
-Rebuilds the object with debug info, runs `wdis -a`, writes `build/<name>.disasm` and opens it in VS Code. Handy for spotting missed optimisations.
+Builds a one-off object with debug info, runs `wdis -a`, writes `build/<name>.disasm` and opens it in VS Code.
 
 ## License
 

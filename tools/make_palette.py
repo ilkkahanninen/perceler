@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-Generate a 256-color indexed BMP palette image for importing into GIMP.
+Generate a 256-color indexed BMP palette image for importing into a
+pixel editor (e.g. GIMP via Image -> Mode -> Indexed -> custom palette).
 
 Usage:
     python3 tools/make_palette.py [output.bmp]
 
-The palette is defined in the palette() function below — edit it to
-create your own.  Each entry is an (R, G, B) tuple with values 0-255.
+The output is a 16x16 BMP where pixel (x, y) carries palette index
+y*16 + x. Edit the palette() function below to define a custom palette;
+each entry is an (R, G, B) tuple with values 0-255.
 
-The output is a 16x16 BMP where each pixel shows one palette index,
-making it easy to verify visually and import into GIMP via:
-    Image → Mode → Indexed → Use custom palette
+No external dependencies.
 """
 
 import struct
@@ -22,8 +22,9 @@ import sys
 # Return a list of 256 (R, G, B) tuples, values 0-255.
 # ======================================================================
 def palette():
-    """Plasma palette matching src/scenes/plasma.c plasma_set_palette().
-    VGA DAC uses 6-bit (0-63) values; BMP uses 8-bit, so we scale by 4."""
+    """Example: a black -> blue -> red -> yellow -> black ramp on
+    indices 0..127, then a 64-step greyscale on 128..191. Values are
+    computed in VGA DAC range (0-63) and scaled by 4 to fit 8-bit BMP."""
     pal = [(0, 0, 0)] * 256
 
     for i in range(128):

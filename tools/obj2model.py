@@ -1,30 +1,31 @@
 #!/usr/bin/env python3
 """
-Convert a Wavefront .obj file to the binary model format used by the engine.
+Convert a Wavefront .obj file to the binary .mdl model format.
 
-Binary layout (all values are little-endian 32-bit signed integers):
-    [num_triangles]
-    [positions:      num_triangles * 9 ints — 3 verts * (x,y,z)  in 8.8 fp]
-    [uvs:            num_triangles * 6 ints — 3 verts * (u,v)    in 8.8 fp]
-    [face_normals:   num_triangles * 3 ints — (nx,ny,nz)         in 8.8 fp]
-    [vertex_normals: num_triangles * 9 ints — 3 verts * (nx,ny,nz) in 8.8 fp]
+Faces with more than 3 vertices are fan-triangulated.
 
 Per-vertex normals are sourced in priority order:
 
-  1. If the .obj face uses `v/vt/vn` syntax, the referenced `vn` is used
-     directly.
-  2. Otherwise faces are grouped by their `s` (smoothing-group) directive
-     and per-vertex normals are computed as the unit-length sum of face
-     normals over all faces that share both the geometric position and
-     the smoothing group.  `s 0` / `s off` faces are not averaged with
-     anything: each such vertex stores the face normal of its own face.
+  1. If the .obj face uses `v/vt/vn` syntax, the referenced `vn` is
+     used directly.
+  2. Otherwise faces are grouped by their `s` (smoothing-group)
+     directive and per-vertex normals are computed as the unit-length
+     sum of face normals over all faces that share both the geometric
+     position and the smoothing group. `s 0` / `s off` faces are not
+     averaged with anything: each such vertex stores the face normal
+     of its own face.
 
-Faces with more than 3 vertices are fan-triangulated.
+Binary layout (little-endian 32-bit signed integers):
+    [num_triangles]
+    [positions:      num_triangles * 9 ints  in 8.8 fp]
+    [uvs:            num_triangles * 6 ints  in 8.8 fp]
+    [face_normals:   num_triangles * 3 ints  in 8.8 fp]
+    [vertex_normals: num_triangles * 9 ints  in 8.8 fp]
 
 Usage:
     python3 tools/obj2model.py input.obj output.mdl
 
-No external dependencies — uses only the Python standard library.
+No external dependencies.
 """
 
 import math

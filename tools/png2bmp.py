@@ -14,12 +14,12 @@ Usage:
 
 Options:
     -p, --palette FILE    Reference palette BMP (overrides auto-detect).
-    -q, --quantize        Force a fresh quantised palette even if the
+    -q, --quantize        Force a fresh quantised palette even when the
                           output file already exists.
     -t, --threshold INT   Alpha threshold 0-255 (default: 128).
                           Pixels with alpha < threshold become index 0.
 
-No external dependencies — uses only the Python standard library.
+No external dependencies.
 """
 
 import argparse

@@ -2,35 +2,24 @@
 """
 Encode a Perceler capture (.RAW + .WAV pair) into a video file via ffmpeg.
 
-The .RAW holds a stream of indexed frames (320×200 @ 8 bits + palette);
-this script expands each frame to RGB24 and pipes it to ffmpeg's stdin.
-The companion .WAV is passed as a regular audio input. No intermediate
-PNG files.
+The .RAW holds a stream of indexed frames (320x200 at 8 bits +
+palette); this script expands each frame to RGB24 and pipes it to
+ffmpeg's stdin. The companion .WAV is passed as a regular audio input.
 
-Defaults are tuned for mastering quality: libx264 `-crf 10 -preset slower
--tune animation`, 320 kb/s AAC audio, `+faststart`. Files are large — the
-assumption is that YouTube / Vimeo / etc. will re-encode anyway, so we
-keep as much headroom as possible on the source.
+Defaults: libx264 -crf 10 -preset slower -tune animation, 320 kb/s
+AAC, +faststart. Override with --crf / --preset, force --lossless, or
+upscale with --scale.
 
 Usage:
-    # Mastering-quality defaults, native resolution.
     python3 tools/capture2video.py CAPTURE demo.mp4
-
-    # 3× nearest-neighbour upscale for a friendlier upload resolution.
     python3 tools/capture2video.py --scale 3 CAPTURE demo.mp4
-
-    # True lossless master (enormous file).
     python3 tools/capture2video.py --lossless CAPTURE demo.mp4
-
-    # Smaller / faster encode for preview.
     python3 tools/capture2video.py --crf 22 --preset fast CAPTURE demo.mp4
 
 The `input` argument accepts either the capture prefix (so CAPTURE.RAW
 and CAPTURE.WAV are both picked up) or a direct path to the .RAW file.
 
-Requires ffmpeg on PATH. Install it with:
-    macOS:  brew install ffmpeg
-    Linux:  apt/dnf/pacman install ffmpeg
+Requires ffmpeg on PATH.
 """
 
 import argparse

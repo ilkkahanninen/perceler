@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Render a WAV file into a per-frame FFT band-energy track.
+Render a WAV file into a per-frame FFT band-energy track (.fft asset).
 
 Pipeline:
   1. Load the WAV (stereo is averaged to mono).
@@ -10,8 +10,12 @@ Pipeline:
   4. Normalise the per-frame energies to 0..255 and write each as a
      single byte to the output file.
 
-Output is a header-less stream of bytes; one byte per frame, in order.
-File length therefore equals the number of frames.
+Output is a header-less stream of bytes, one byte per frame in order;
+file length equals the number of frames.
+
+Usage:
+    python3 tools/wav2fft.py input.wav [output.fft]
+                             [--fps N] [--low HZ] [--high HZ] [--window N]
 
 Requires numpy.
 """

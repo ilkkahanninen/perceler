@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Convert an XM module to a WAV file using the xmp CLI tool.
+# Convert an XM module to a WAV file using the xmp CLI.
 #
 # Usage:
 #   tools/xm2wav.sh input.xm [output.wav] [rate]
 #
 # Defaults:
-#   output = <input stem>.wav, next to the input file
-#   rate   = 44100
+#   output  <input stem>.wav, next to the input file
+#   rate    44100 Hz
+#
+# Requires xmp on PATH.
 
 set -euo pipefail
 

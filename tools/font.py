@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """
-Font tool — create drawing templates and convert filled-in BMPs to the
-binary .fnt asset format consumed by src/scenes/utils/font.c.
+Create drawing templates and convert filled-in BMPs to the binary .fnt
+asset format consumed by the runtime font loader.
 
 Subcommands:
-    template  — create an empty template BMP with grid cells + labels
-    build     — convert a filled-in template BMP into a .fnt asset
+    template - create an empty template BMP with grid cells + labels
+    build    - convert a filled-in template BMP into a .fnt asset
 
-Both take the same --width / --height / --first / --count to describe the
-font geometry; cell layout is computed identically.
+Both subcommands take --width / --height / --first / --count to
+describe the font geometry; the cell layout is computed identically.
 
 Typical flow:
     python3 tools/font.py template --width 16 --height 16 mystyle.bmp
     # open mystyle.bmp in a pixel editor, paint glyph canvases with
-    # palette index 1 (white); leave borders/labels/reference alone
+    # palette index 1 (white); leave borders / labels / reference alone
     python3 tools/font.py build --width 16 --height 16 mystyle.bmp \\
         assets/mystyle.fnt
 
@@ -26,12 +26,12 @@ Typical flow:
      16     N    glyph data  (num_chars * (glyph_w/8) * glyph_h bytes,
                               each row LSB-first)
 
-Palette conventions for the template BMP:
-    0  black  — canvas background (off pixel in output)
-    1  white  — draw here (on pixel in output)
-    2  gray   — borders, labels, reference glyph (ignored by `build`)
+Template-BMP palette convention:
+    0  black  - canvas background (off pixel in output)
+    1  white  - draw here (on pixel in output)
+    2  gray   - borders, labels, reference glyph (ignored by `build`)
 
-No external dependencies — Python stdlib only.
+No external dependencies.
 """
 
 import argparse

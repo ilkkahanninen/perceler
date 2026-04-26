@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """
-Convert an Autodesk .3ds file to the binary model format used by the engine.
+Convert an Autodesk .3ds file to the binary .mdl model format.
 
 Each mesh in the .3ds is written to its own .mdl file named
-<input_stem>_<mesh_name>.mdl. Lights and cameras are ignored. Missing
-UVs default to (0, 0). Face normals are computed per-triangle from the
-vertex positions; per-vertex normals are computed from face smoothing-
-group bitmasks (chunk 0x4150).  Two faces smooth across a shared edge
-iff their masks share at least one bit; faces with mask 0 are kept
-hard.
+<input_stem>_<mesh_name>.mdl. Lights and cameras are ignored.
 
-Binary layout (see tools/obj2model.py and src/scenes/utils/model.h
-for the canonical spec):
+Face normals are computed per-triangle from the vertex positions.
+Per-vertex normals are derived from face smoothing-group bitmasks
+(chunk 0x4150): two faces smooth across a shared edge if their masks
+share at least one bit; faces with mask 0 are kept hard. Missing UVs
+default to (0, 0).
+
+Binary layout (see model.h for the canonical spec):
     [num_triangles]
     [positions:      num_triangles * 9 ints  in 8.8 fp]
     [uvs:            num_triangles * 6 ints  in 8.8 fp]
@@ -21,7 +21,7 @@ for the canonical spec):
 Usage:
     python3 tools/3ds2model.py input.3ds output_dir/
 
-No external dependencies — uses only the Python standard library.
+No external dependencies.
 """
 
 import math

@@ -4,22 +4,18 @@
 /*
  * Keyframe-based parameter tweening on a millisecond timeline.
  *
- * Values are stored as 8.8 fixed-point integers (the project-wide math
- * convention — see src/scenes/utils/math.h). `256 * x` represents the
- * real number `x`; valid range is roughly [-128.0, +128.0).
+ * Values are Q8.8 fixed-point integers; `256 * x` represents the real
+ * number `x`; valid range is roughly [-128.0, +128.0).
  *
  * Build a const array of Keyframes in ascending time order, wrap with
- * TWEEN(), and sample with tween_at() against audio_music_ms() or any
- * other ms clock.
+ * TWEEN(), and sample with tween_at() against any ms timestamp.
  *
- * Each keyframe's `out_curve` controls interpolation across the segment
- * from that keyframe to the NEXT one. The curve on the last keyframe
- * is unused.
+ * Each keyframe's `out_curve` controls interpolation across the
+ * segment from that keyframe to the NEXT one; the curve on the last
+ * keyframe is unused. Before keys[0].time_ms the value clamps to
+ * keys[0].value; after keys[last].time_ms it clamps to keys[last].value.
  *
- * Before keys[0].time_ms the value clamps to keys[0].value. After
- * keys[last].time_ms it clamps to keys[last].value.
- *
- * Usage:
+ * Example:
  *   static const Keyframe cam_x_keys[] = {
  *     {    0,   0 * 256, TWEEN_SMOOTH },  // 0.0
  *     { 2000, 120 * 256, TWEEN_LINEAR },  // 120.0
@@ -28,10 +24,7 @@
  *     { 8000,   0 * 256, TWEEN_LINEAR },  // last: out_curve ignored
  *   };
  *   static const Tween cam_x = TWEEN(cam_x_keys);
- *
- *   // in render:
- *   int x_88 = tween_at(&cam_x, audio_music_ms());
- *   int x    = x_88 >> 8;  // to integer pixels
+ *   int x = tween_at_int(&cam_x, ctx->ms);
  */
 
 typedef enum

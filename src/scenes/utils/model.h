@@ -24,7 +24,7 @@
  *                                  = N * 108 total payload
  *
  * The four arrays are stored back-to-back in that order, each laid out
- * in triangle order.  There is no padding and no per-triangle header.
+ * in triangle order. There is no padding and no per-triangle header.
  *
  * ======================================================================
  * Per-triangle layout
@@ -36,17 +36,15 @@
  *   vertex_normals[i*9 + 0..8]  =  vn0x,vn0y,vn0z, vn1x,vn1y,vn1z,
  *                                  vn2x,vn2y,vn2z       (one per vertex)
  *
- * Vertex order encodes winding (CCW = front-facing under the usual right-
- * handed convention).  Triangles are stored flat (no index buffer) so the
- * renderer can walk all four streams as parallel sequential reads —
- * vertices shared between triangles are duplicated on disk.
+ * Vertex order encodes winding (CCW = front-facing under the usual
+ * right-handed convention). Triangles are stored flat (no index buffer);
+ * vertices shared between triangles are duplicated on disk so all four
+ * streams can be walked as parallel sequential reads.
  *
- * Face normals enable cheap view-space backface culling (one dot product
- * per triangle).  Vertex normals enable Gouraud shading: averaged across
- * adjacent faces at shared positions for smooth shading, or kept equal
- * to the face normal for hard edges.  The split between the two is set
- * at export time via OBJ smoothing groups (`s`) or 3DS smoothing-group
- * bitmasks.
+ * Face normals support backface culling (one dot product per triangle).
+ * Vertex normals support smooth (Gouraud) shading; for hard edges they
+ * are kept equal to the face normal. The split is set at export time
+ * via OBJ smoothing groups (`s`) or 3DS smoothing-group bitmasks.
  *
  * ======================================================================
  * 8.8 fixed-point encoding
@@ -56,53 +54,49 @@
  *
  *      stored_int = round(real_value * 256)
  *
- * so the low 8 bits are the fractional part and the upper bits are the
- * integer part.  Each stored value is decoded back as  stored_int / 256.0.
+ * The low 8 bits are the fractional part and the upper bits are the
+ * integer part. Each stored value decodes as  stored_int / 256.0.
  *
- * Although the file stores these in 32-bit ints (for a loader that never
- * has to sign-extend), the renderer's 8.8 arithmetic is intended to run
- * in 32-bit intermediates — i.e. 8.8 * 8.8 -> 16.16 — which is safe only
- * while each input stays within signed 16-bit range (about -128.0 to
- * +127.996 in real units).  Authoring models outside that range will
- * overflow downstream fixed-point math (see utils/math.h, sin8/cos8).
+ * Each input must stay within signed 16-bit range (about -128.0 to
+ * +127.996 in real units) so 8.8 * 8.8 -> 16.16 multiplies do not
+ * overflow downstream.
  *
- * Unit normals therefore encode as values in roughly [-256, +256]:
- * +1.0 -> 256, -1.0 -> -256.  UVs are typically in [0, 1] real -> [0, 256]
- * stored.
+ * Unit normals encode as values in roughly [-256, +256]: +1.0 -> 256,
+ * -1.0 -> -256. UVs in [0, 1] real -> [0, 256] stored.
  *
  * ======================================================================
  * Producing .mdl files
  * ======================================================================
  *
  *   python3 tools/obj2model.py  input.obj output.mdl
- *       One mesh per .obj; polygons are fan-triangulated.  Honours the
- *       `vn`/`v/vt/vn` constructs and `s` smoothing groups.
+ *       One mesh per .obj; polygons are fan-triangulated. Honours the
+ *       `vn` / `v/vt/vn` constructs and `s` smoothing groups.
  *
  *   python3 tools/3ds2model.py  input.3ds output_dir/
  *       One .mdl per mesh in the .3ds; files named
- *       <input_stem>_<mesh_name>.mdl.  Honours per-face smoothing-group
+ *       <input_stem>_<mesh_name>.mdl. Honours per-face smoothing-group
  *       bitmasks.
  *
  * ======================================================================
  * Runtime usage
  * ======================================================================
  *
- *   Model *mdl = model_load(ASSET_TEAPOT_MDL, MODEL_GOURAUD);
- *   // walk mdl->positions, mdl->face_normals, mdl->vertex_normals as
- *   // flat int arrays; mdl->num_triangles gives stride multipliers.
+ *   Model *mdl = model_load(ASSET_FOO_MDL, MODEL_GOURAUD);
+ *   ... walk mdl->positions, mdl->face_normals, mdl->vertex_normals as
+ *   ... flat int arrays; mdl->num_triangles gives stride multipliers.
  *   model_free(mdl);
  *
- * Pass MODEL_LOAD_* flags to skip arrays you don't need — the file is
- * still read whole, but only the requested buffers are allocated.
+ * Pass MODEL_LOAD_* flags to skip arrays the scene does not need — the
+ * file is still read whole, but only the requested buffers are allocated.
  */
 
-/* Load flags. Combine with bitwise OR. */
+/* Per-array load flags; combine with bitwise OR. */
 #define MODEL_LOAD_POSITIONS      0x01
 #define MODEL_LOAD_UVS            0x02
 #define MODEL_LOAD_FACE_NORMALS   0x04
 #define MODEL_LOAD_VERTEX_NORMALS 0x08
 
-/* Convenience combos. */
+/* Common combinations. */
 #define MODEL_WIREFRAME (MODEL_LOAD_POSITIONS | MODEL_LOAD_FACE_NORMALS)
 #define MODEL_FLAT      (MODEL_LOAD_POSITIONS | MODEL_LOAD_FACE_NORMALS)
 #define MODEL_GOURAUD   (MODEL_LOAD_POSITIONS | MODEL_LOAD_FACE_NORMALS | \
@@ -118,8 +112,8 @@ typedef struct
   int num_triangles;
 
   /* Each pointer is non-NULL only if the corresponding MODEL_LOAD_*
-   * flag was passed to model_load().  Polyhedron-built models populate
-   * all four. */
+   * flag was passed to model_load(). polyhedron_create() always
+   * populates all four. */
   int *positions;      /* num_triangles * 9 */
   int *uvs;            /* num_triangles * 6 */
   int *face_normals;   /* num_triangles * 3 */
@@ -127,10 +121,11 @@ typedef struct
 } Model;
 
 /* Load a model from the packed data file. `flags` selects which arrays
- * to allocate and copy out.  Returns 0 on error. */
+ * to allocate and copy out. Returns 0 on error. */
 Model *model_load(Asset asset, unsigned flags);
 
-/* Free a model returned by model_load() (or polyhedron_create()). */
+/* Free a model returned by model_load() or polyhedron_create(). Safe
+ * to pass NULL. */
 void model_free(Model *mdl);
 
 #endif

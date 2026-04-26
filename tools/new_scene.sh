@@ -1,5 +1,6 @@
 #!/bin/bash
-# Creates a new scene with boilerplate .c and .h files
+# Generate boilerplate .c and .h files for a new scene under
+# src/scenes/. Usage: tools/new_scene.sh <scene_name>
 
 set -e
 

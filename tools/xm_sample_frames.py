@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Find the 60fps frame numbers where given samples are triggered in an XM file.
+Extract the 60 fps frame numbers where given samples are triggered in
+an XM module, and emit a C header with one `sample_N_frames[]` array
+per requested sample.
 
-Parses the XM module, walks through the pattern order row by row, tracks
-tempo (BPM) and speed changes, and outputs a C header with frame arrays
-for each requested sample.
+The parser walks the pattern order row by row and follows tempo (BPM)
+and speed changes so the frame numbers stay accurate.
 
 Usage:
     python3 tools/xm_sample_frames.py song.xm output.h 1 5 12

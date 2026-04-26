@@ -3,9 +3,9 @@
 #
 # Usage: tools/wdis.sh <src/path/to/file.c>
 #
-# Compiles a one-off debug build of the source, disassembles it with
-# source lines interleaved as comments, and opens the output in the
-# currently focused VS Code editor column.
+# Builds a one-off object with debug info, runs `wdis -a` with source
+# lines interleaved as comments, writes build/<name>.disasm and opens
+# it in the currently focused VS Code editor column.
 
 set -e
 

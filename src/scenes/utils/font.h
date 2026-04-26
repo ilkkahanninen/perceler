@@ -6,24 +6,22 @@
 /*
  * Monospace bitmap-font text renderer.
  *
- * A Font stores glyph bitmaps packed LSB-first (bit 0 = leftmost pixel),
- * with `glyph_w / 8` bytes per row and `glyph_h` rows per glyph. Glyphs
- * cover a contiguous ASCII range starting at `first_char`.
+ * A Font stores glyph bitmaps packed LSB-first (bit 0 = leftmost
+ * pixel), with `glyph_w / 8` bytes per row and `glyph_h` rows per
+ * glyph. Glyphs cover a contiguous ASCII range starting at
+ * `first_char`. `glyph_w` must be a multiple of 8.
  *
- * `glyph_w` must be a multiple of 8 (8, 16, 24, 32, ...). The renderer
- * skips zero bytes in each row as a whole, so sparse glyphs are fast.
+ * Layout sizes:
+ *   glyph_w=8,  glyph_h=8  -> 1 byte/row  ×  8 rows =  8 bytes/glyph
+ *   glyph_w=16, glyph_h=16 -> 2 bytes/row × 16 rows = 32 bytes/glyph
+ *   glyph_w=24, glyph_h=32 -> 3 bytes/row × 32 rows = 96 bytes/glyph
  *
- * Example layouts:
- *   glyph_w=8,  glyph_h=8  → 1 byte/row  ×  8 rows =   8 bytes/glyph
- *   glyph_w=16, glyph_h=16 → 2 bytes/row × 16 rows =  32 bytes/glyph
- *   glyph_w=24, glyph_h=32 → 3 bytes/row × 32 rows =  96 bytes/glyph
- *
- * The built-in `font_default` is a public-domain 8x8 IBM-style font
+ * `font_default` is a built-in public-domain 8×8 IBM-style font
  * covering ASCII 32 ('space') through 127.
  *
  * Rendering is a transparent blit: zero bits are skipped, set bits are
  * written as the caller-supplied palette index. Bounds-clipped to
- * 320x200.
+ * 320×200.
  */
 
 typedef struct
