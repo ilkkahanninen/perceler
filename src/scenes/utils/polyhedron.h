@@ -8,8 +8,7 @@
  *
  * Each face is emitted as triangles in the Model format. All four
  * Model arrays are populated: positions (Q8.8), uvs (each face mapped
- * onto the unit square), face_normals, and vertex_normals (equal to
- * the face normal, so a Gouraud rasterizer reduces to flat shading).
+ * onto the unit square), face_normals, and vertex_normals.
  *
  * Circumradius (vertex distance from origin) is normalised to 1.0 so
  * all kinds share a common bounding sphere.
@@ -25,7 +24,24 @@
  *       `scale == 0`              -> pyramid (collapses to a point)
  *
  * `extrude` and `scale` are Q8.8 fixed-point.
+ *
+ * Vertex normals:
+ *   `flags == 0`                 -> faceted; every vertex of a triangle
+ *                                   carries the face normal, so a
+ *                                   Gouraud rasterizer reduces to flat
+ *                                   shading and sphere-mapping samples
+ *                                   one texel per face.
+ *   `flags == POLYHEDRON_SMOOTH` -> averaged; for each shared vertex
+ *                                   position, the vertex normal is the
+ *                                   unit-length sum of the face
+ *                                   normals of all triangles meeting
+ *                                   there. Smoothing crosses every
+ *                                   shared edge in the mesh (no
+ *                                   smoothing groups), which rounds
+ *                                   off otherwise-hard edges.
  */
+
+#define POLYHEDRON_SMOOTH 0x01
 
 typedef enum
 {
@@ -37,6 +53,7 @@ typedef enum
 
 /* Generate a Model; pair with model_free(). Returns NULL on allocation
  * failure or unknown kind. */
-Model *polyhedron_create(PolyhedronKind kind, int extrude, int scale);
+Model *polyhedron_create(PolyhedronKind kind, int extrude, int scale,
+                         unsigned flags);
 
 #endif

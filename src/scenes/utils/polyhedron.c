@@ -272,10 +272,65 @@ static Uv88 face_uv(int face_size, int idx)
  * buffers a touch larger in case future additions need pentagons. */
 #define POLY_MAX_FACE_VERTS 8
 
+/* For each vertex, replace its normal with the unit-length sum of the
+ * face normals of every triangle that shares the same position. O(n²)
+ * over total vertices, fine for polyhedra of a few hundred triangles. */
+static void smooth_vertex_normals(Model *m)
+{
+  int n = m->num_triangles * 3;
+  int i, j;
+  int *out = (int *)malloc((unsigned)n * 3 * sizeof(int));
+  if (!out)
+    return;
+
+  for (i = 0; i < n; i++)
+  {
+    int px = m->positions[i * 3 + 0];
+    int py = m->positions[i * 3 + 1];
+    int pz = m->positions[i * 3 + 2];
+    long sx = 0, sy = 0, sz = 0;
+    float fx, fy, fz, len;
+
+    for (j = 0; j < n; j++)
+    {
+      if (m->positions[j * 3 + 0] == px &&
+          m->positions[j * 3 + 1] == py &&
+          m->positions[j * 3 + 2] == pz)
+      {
+        int t = j / 3;
+        sx += m->face_normals[t * 3 + 0];
+        sy += m->face_normals[t * 3 + 1];
+        sz += m->face_normals[t * 3 + 2];
+      }
+    }
+
+    fx = (float)sx;
+    fy = (float)sy;
+    fz = (float)sz;
+    len = (float)sqrt((double)(fx * fx + fy * fy + fz * fz));
+    if (len > 0.001f)
+    {
+      out[i * 3 + 0] = (int)(fx * 256.0f / len);
+      out[i * 3 + 1] = (int)(fy * 256.0f / len);
+      out[i * 3 + 2] = (int)(fz * 256.0f / len);
+    }
+    else
+    {
+      out[i * 3 + 0] = m->vertex_normals[i * 3 + 0];
+      out[i * 3 + 1] = m->vertex_normals[i * 3 + 1];
+      out[i * 3 + 2] = m->vertex_normals[i * 3 + 2];
+    }
+  }
+
+  memcpy(m->vertex_normals, out, (unsigned)n * 3 * sizeof(int));
+  free(out);
+}
+
 /* ------------------------------------------------------------------ */
 /* Public: generate a Model                                            */
 /* ------------------------------------------------------------------ */
-Model *polyhedron_create(PolyhedronKind kind, int extrude_fp, int scale_fp)
+Model *polyhedron_create(PolyhedronKind kind, int extrude_fp, int scale_fp,
+                         unsigned flags)
 {
   const PolyData *d = select_data(kind);
   Vec3 face[POLY_MAX_FACE_VERTS];
@@ -376,6 +431,9 @@ Model *polyhedron_create(PolyhedronKind kind, int extrude_fp, int scale_fp)
       emit_tri(m, out++, b0, t1, t0, wall_normal, uv_bl, uv_tr, uv_tl);
     }
   }
+
+  if (flags & POLYHEDRON_SMOOTH)
+    smooth_vertex_normals(m);
 
   return m;
 }
