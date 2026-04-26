@@ -1,6 +1,6 @@
 /*
  * Textured cube with per-vertex Lambert shading via a colormap LUT.
- * The marble texture's palette is uploaded to the DAC and a 64×256
+ * The texture texture's palette is uploaded to the DAC and a 64×256
  * colormap is precomputed at setup so the rasterizer can shade each
  * texel with a single byte lookup — no per-pixel multiply.
  */
@@ -31,7 +31,7 @@ static const Camera3D camera = {
 #define LIGHT_Z (int)(0.82 * FP_ONE)
 
 static Model *cube;
-static Texture *marble;
+static Texture *texture;
 static Colormap *colormap;
 static int *transformed;        /* num_tris * 9 (positions) */
 static int *transformed_fnorms; /* num_tris * 3 (face normals, for cull) */
@@ -53,11 +53,11 @@ static int lambert(const int *n)
 
 static void setup(void)
 {
-  cube = polyhedron_create(POLYHEDRON_CUBE, 0, 0);
-  marble = texture_load(ASSET_MARBLE_BMP);
+  cube = polyhedron_create(POLYHEDRON_CUBE, 0, 0, 0);
+  texture = texture_load(ASSET_MARBLE_BMP);
   /* Colormap is 16 KB — heap is fine. */
   colormap = (Colormap *)malloc(sizeof(Colormap));
-  colormap_build(colormap, &marble->palette);
+  colormap_build(colormap, &texture->palette);
   num_tris = cube->num_triangles;
   transformed = (int *)malloc(num_tris * 9 * sizeof(int));
   transformed_fnorms = (int *)malloc(num_tris * 3 * sizeof(int));
@@ -68,15 +68,15 @@ static void setup(void)
 static void init(const RenderContext *ctx)
 {
   (void)ctx;
-  palette_apply(&marble->palette);
+  palette_apply(&texture->palette);
 }
 
 static void shutdown(void)
 {
   model_free(cube);
   cube = NULL;
-  texture_free(marble);
-  marble = NULL;
+  texture_free(texture);
+  texture = NULL;
   free(colormap);
   colormap = NULL;
   free(transformed);
@@ -124,7 +124,7 @@ static void render(const RenderContext *ctx)
                                    sx0, sy0, v[2], uv[0], uv[1], lambert(vn + 0),
                                    sx1, sy1, v[5], uv[2], uv[3], lambert(vn + 3),
                                    sx2, sy2, v[8], uv[4], uv[5], lambert(vn + 6),
-                                   marble, colormap);
+                                   texture, colormap);
   }
 
   font_draw(&font_default, backbuffer, 4, 4, 255, "shaded_cube.c");

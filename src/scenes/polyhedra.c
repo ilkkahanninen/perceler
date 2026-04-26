@@ -69,7 +69,7 @@ static void polyhedra_setup(void)
   for (i = 0; i < NUM_SHAPES; i++)
   {
     models[i] = polyhedron_create(SHAPES[i].kind, SHAPES[i].extrude,
-                                  SHAPES[i].scale);
+                                  SHAPES[i].scale, 0);
     if (models[i] && models[i]->num_triangles > max_tris)
       max_tris = models[i]->num_triangles;
   }
