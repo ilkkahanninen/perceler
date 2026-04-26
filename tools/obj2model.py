@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Convert a Wavefront .obj file to the binary .mdl model format.
+Convert a Wavefront .obj file to the binary .mdl model format (MDL2,
+indexed mesh).
 
 Faces with more than 3 vertices are fan-triangulated.
 
@@ -15,12 +16,18 @@ Per-vertex normals are sourced in priority order:
      averaged with anything: each such vertex stores the face normal
      of its own face.
 
-Binary layout (little-endian 32-bit signed integers):
-    [num_triangles]
-    [positions:      num_triangles * 9 ints  in 8.8 fp]
-    [uvs:            num_triangles * 6 ints  in 8.8 fp]
-    [face_normals:   num_triangles * 3 ints  in 8.8 fp]
-    [vertex_normals: num_triangles * 9 ints  in 8.8 fp]
+After triangulation each (position, uv, normal) tuple is deduplicated
+into a single shared vertex, and an index buffer is emitted.
+
+File layout (little-endian; see model.h for the canonical spec):
+    [magic 'M','D','L','2']
+    [num_vertices V]
+    [num_triangles N]
+    [positions:      V * 3 ints  in 8.8 fp]
+    [uvs:            V * 2 ints  in 8.8 fp]
+    [vertex_normals: V * 3 ints  in 8.8 fp]
+    [face_normals:   N * 3 ints  in 8.8 fp]
+    [indices:        N * 3 ints]
 
 Usage:
     python3 tools/obj2model.py input.obj output.mdl
@@ -31,6 +38,9 @@ No external dependencies.
 import math
 import struct
 import sys
+
+
+MDL2_MAGIC = b"MDL2"
 
 
 def parse_obj(path):
@@ -120,9 +130,6 @@ def compute_vertex_normals(vertices, triangles, face_normals):
     in the same smoothing group, then normalised. `s 0` triangles get
     their own face normal back (no averaging)."""
 
-    # Bucket: (vertex_index, smooth_group) -> list of triangle indices.
-    # smooth=0 buckets only contain that one triangle (we use a unique
-    # sentinel so they never average together).
     buckets = {}
     for ti, (smooth, verts) in enumerate(triangles):
         for vi, _, _ in verts:
@@ -162,9 +169,6 @@ def convert(obj_path, out_path):
     triangles = triangulate(faces)
     num_triangles = len(triangles)
 
-    # Compute the face normal for every triangle (used both for the
-    # face_normals output array and as the basis for averaged vertex
-    # normals when the file doesn't supply per-vertex normals).
     face_normals_geom = []
     for _, verts in triangles:
         v0 = vertices[verts[0][0]]
@@ -172,57 +176,74 @@ def convert(obj_path, out_path):
         v2 = vertices[verts[2][0]]
         face_normals_geom.append(face_normal(v0, v1, v2))
 
-    # Vertex normals from file-supplied `vn` if every vertex of every
-    # triangle references one; otherwise computed from smoothing groups.
     have_file_vns = all(
         all(vn_idx >= 0 and vn_idx < len(file_normals) for _, _, vn_idx in v)
         for _, v in triangles)
     if have_file_vns:
-        vertex_normals = []
+        per_tri_vertex_normals = []
         for _, verts in triangles:
             for _, _, ni in verts:
-                vertex_normals.append(file_normals[ni])
+                per_tri_vertex_normals.append(file_normals[ni])
     else:
-        vertex_normals = compute_vertex_normals(vertices, triangles,
-                                                face_normals_geom)
+        per_tri_vertex_normals = compute_vertex_normals(
+            vertices, triangles, face_normals_geom)
 
-    positions = []
-    uvs = []
-    face_normals_out = []
-    vertex_normals_out = []
+    # Dedupe per-(triangle,vertex) tuples on (position, uv, normal).
+    # The 8.8 quantisation means slightly-different floats round to the
+    # same int triple — already a useful merge. Vertex IDs are emitted
+    # in first-seen order for stable output.
+    vertex_index = {}
+    unique_positions = []
+    unique_uvs = []
+    unique_vnormals = []
+    indices = []
 
     for ti, (_, verts) in enumerate(triangles):
-        for vi, _, _ in verts:
+        for vi_in_tri, (vi, ti_idx, _) in enumerate(verts):
             v = vertices[vi]
-            positions.extend([f88(v[0]), f88(v[1]), f88(v[2])])
-
-        for _, ti_idx, _ in verts:
-            if 0 <= ti_idx < len(texcoords):
+            if texcoords is not None and 0 <= ti_idx < len(texcoords):
                 uv = texcoords[ti_idx]
             else:
                 uv = (0.0, 0.0)
-            uvs.extend([f88(uv[0]), f88(uv[1])])
+            n = per_tri_vertex_normals[ti * 3 + vi_in_tri]
 
-        n = face_normals_geom[ti]
+            pos_key = (f88(v[0]), f88(v[1]), f88(v[2]))
+            uv_key  = (f88(uv[0]), f88(uv[1]))
+            n_key   = (f88(n[0]), f88(n[1]), f88(n[2]))
+            key = pos_key + uv_key + n_key
+
+            idx = vertex_index.get(key)
+            if idx is None:
+                idx = len(unique_positions) // 3
+                unique_positions.extend(pos_key)
+                unique_uvs.extend(uv_key)
+                unique_vnormals.extend(n_key)
+                vertex_index[key] = idx
+            indices.append(idx)
+
+    num_vertices = len(unique_positions) // 3
+
+    face_normals_out = []
+    for n in face_normals_geom:
         face_normals_out.extend([f88(n[0]), f88(n[1]), f88(n[2])])
 
-    for n in vertex_normals:
-        vertex_normals_out.extend([f88(n[0]), f88(n[1]), f88(n[2])])
-
     with open(out_path, "wb") as f:
-        f.write(struct.pack("<i", num_triangles))
-        for v in positions:
+        f.write(MDL2_MAGIC)
+        f.write(struct.pack("<ii", num_vertices, num_triangles))
+        for v in unique_positions:
             f.write(struct.pack("<i", v))
-        for v in uvs:
+        for v in unique_uvs:
+            f.write(struct.pack("<i", v))
+        for v in unique_vnormals:
             f.write(struct.pack("<i", v))
         for v in face_normals_out:
             f.write(struct.pack("<i", v))
-        for v in vertex_normals_out:
+        for v in indices:
             f.write(struct.pack("<i", v))
 
     src = "file vns" if have_file_vns else "smoothing groups"
-    print("%s -> %s: %d triangles (%s)"
-          % (obj_path, out_path, num_triangles, src))
+    print("%s -> %s: %d triangles, %d vertices (%s)"
+          % (obj_path, out_path, num_triangles, num_vertices, src))
 
 
 def main():

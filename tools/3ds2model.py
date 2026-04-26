@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-Convert an Autodesk .3ds file to the binary .mdl model format.
+Convert an Autodesk .3ds file to the binary .mdl model format (MDL2,
+indexed mesh).
 
 Each mesh in the .3ds is written to its own .mdl file named
 <input_stem>_<mesh_name>.mdl. Lights and cameras are ignored.
@@ -11,12 +12,8 @@ Per-vertex normals are derived from face smoothing-group bitmasks
 share at least one bit; faces with mask 0 are kept hard. Missing UVs
 default to (0, 0).
 
-Binary layout (see model.h for the canonical spec):
-    [num_triangles]
-    [positions:      num_triangles * 9 ints  in 8.8 fp]
-    [uvs:            num_triangles * 6 ints  in 8.8 fp]
-    [face_normals:   num_triangles * 3 ints  in 8.8 fp]
-    [vertex_normals: num_triangles * 9 ints  in 8.8 fp]
+Per-(triangle, vertex) tuples are deduplicated on (position, uv,
+normal); see model.h for the canonical file layout.
 
 Usage:
     python3 tools/3ds2model.py input.3ds output_dir/
@@ -30,6 +27,8 @@ import re
 import struct
 import sys
 
+
+MDL2_MAGIC = b"MDL2"
 
 CHUNK_MAIN      = 0x4D4D
 CHUNK_EDITOR    = 0x3D3D
@@ -71,7 +70,6 @@ def parse_trimesh(data, start, end):
                 a, b, c, _flags = struct.unpack_from("<HHHH", data,
                                                     cstart + 2 + i * 8)
                 faces.append((a, b, c))
-            # Sub-chunks (smoothing, etc.) live after the face data.
             faces_start = cstart + 2 + n * 8
             faces_end = cend
         elif cid == CHUNK_TEXCOORDS:
@@ -83,7 +81,6 @@ def parse_trimesh(data, start, end):
         for cid, cstart, cend in iter_chunks(data, faces_start, faces_end):
             if cid == CHUNK_SMOOTHING:
                 smoothing = []
-                # One u32 bitmask per face, in face order.
                 for i in range(len(faces)):
                     (m,) = struct.unpack_from("<I", data, cstart + i * 4)
                     smoothing.append(m)
@@ -150,7 +147,6 @@ def compute_vertex_normals(faces, smoothing, face_normals):
     share the position AND share at least one smoothing bit, then
     normalise. Faces with mask 0 keep their face normal verbatim."""
 
-    # Index: vertex_position -> list of (face_index, mask)
     position_to_faces = {}
     for fi, (a, b, c) in enumerate(faces):
         m = smoothing[fi]
@@ -190,41 +186,61 @@ def write_mdl(out_path, vertices, texcoords, faces, smoothing):
     for a, b, c in faces:
         face_normals.append(face_normal(vertices[a], vertices[b], vertices[c]))
 
-    vertex_normals = compute_vertex_normals(faces, smoothing, face_normals)
+    per_tri_vertex_normals = compute_vertex_normals(
+        faces, smoothing, face_normals)
 
-    positions = []
-    uvs = []
-    fn_out = []
-    vn_out = []
+    # Dedupe (position, uv, normal) tuples.
+    vertex_index = {}
+    unique_positions = []
+    unique_uvs = []
+    unique_vnormals = []
+    indices = []
 
     for fi, (a, b, c) in enumerate(faces):
-        v0, v1, v2 = vertices[a], vertices[b], vertices[c]
-        for v in (v0, v1, v2):
-            positions.extend([f88(v[0]), f88(v[1]), f88(v[2])])
-
-        for idx in (a, b, c):
+        for vi_in_face, idx in enumerate((a, b, c)):
+            v = vertices[idx]
             if texcoords is not None and idx < len(texcoords):
-                u, v = texcoords[idx]
+                u, vv = texcoords[idx]
             else:
-                u, v = 0.0, 0.0
-            uvs.extend([f88(u), f88(v)])
+                u, vv = 0.0, 0.0
+            n = per_tri_vertex_normals[fi * 3 + vi_in_face]
 
-        n = face_normals[fi]
+            pos_key = (f88(v[0]), f88(v[1]), f88(v[2]))
+            uv_key  = (f88(u), f88(vv))
+            n_key   = (f88(n[0]), f88(n[1]), f88(n[2]))
+            key = pos_key + uv_key + n_key
+
+            vid = vertex_index.get(key)
+            if vid is None:
+                vid = len(unique_positions) // 3
+                unique_positions.extend(pos_key)
+                unique_uvs.extend(uv_key)
+                unique_vnormals.extend(n_key)
+                vertex_index[key] = vid
+            indices.append(vid)
+
+    num_vertices = len(unique_positions) // 3
+    num_triangles = len(faces)
+
+    fn_out = []
+    for n in face_normals:
         fn_out.extend([f88(n[0]), f88(n[1]), f88(n[2])])
 
-    for n in vertex_normals:
-        vn_out.extend([f88(n[0]), f88(n[1]), f88(n[2])])
-
     with open(out_path, "wb") as f:
-        f.write(struct.pack("<i", len(faces)))
-        for v in positions:
+        f.write(MDL2_MAGIC)
+        f.write(struct.pack("<ii", num_vertices, num_triangles))
+        for v in unique_positions:
             f.write(struct.pack("<i", v))
-        for v in uvs:
+        for v in unique_uvs:
+            f.write(struct.pack("<i", v))
+        for v in unique_vnormals:
             f.write(struct.pack("<i", v))
         for v in fn_out:
             f.write(struct.pack("<i", v))
-        for v in vn_out:
+        for v in indices:
             f.write(struct.pack("<i", v))
+
+    return num_vertices, num_triangles
 
 
 def convert(in_path, out_dir):
@@ -244,9 +260,9 @@ def convert(in_path, out_dir):
         used[base] = n + 1
         filename = base if n == 0 else "%s_%d" % (base, n)
         out_path = os.path.join(out_dir, filename + ".mdl")
-        write_mdl(out_path, verts, tcs, faces, smoothing)
-        print("%s[%s] -> %s: %d triangles"
-              % (in_path, name, out_path, len(faces)))
+        nv, nt = write_mdl(out_path, verts, tcs, faces, smoothing)
+        print("%s[%s] -> %s: %d triangles, %d vertices"
+              % (in_path, name, out_path, nt, nv))
 
 
 def main():
