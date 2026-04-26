@@ -47,7 +47,6 @@ LIBXMP_LOBJS  := $(patsubst $(LIBXMP_DIR)/src/loaders/%.c,$(BUILDDIR)/xmpl_%.obj
 ASSET_SRCDIR  := asset-sources
 PNG_SOURCES   := $(wildcard $(ASSET_SRCDIR)/*.png)
 PNG_ASSETS    := $(patsubst $(ASSET_SRCDIR)/%.png,assets/%.bmp,$(PNG_SOURCES))
-PALETTE_BMP   := $(ASSET_SRCDIR)/palette.bmp
 
 # --- OBJ to MDL conversion ---
 OBJ_SOURCES   := $(wildcard $(ASSET_SRCDIR)/*.obj)
@@ -70,8 +69,11 @@ $(BUILDDIR):
 $(ASSET_DAT) $(ASSET_HDR): $(ASSET_FILES) $(PNG_ASSETS) tools/pack_assets.py | $(BUILDDIR)
 	python3 tools/pack_assets.py $(BUILDDIR) $(SRCDIR) $(ASSET_FILES)
 
-assets/%.bmp: $(ASSET_SRCDIR)/%.png $(PALETTE_BMP) tools/png2bmp.py
-	python3 tools/png2bmp.py $< $@ -p $(PALETTE_BMP)
+# Palette resolution is left to png2bmp.py: it reuses the existing
+# output BMP's palette when present, and quantises a fresh one otherwise.
+# Pass `-p palette.bmp` here if a project-wide reference palette is wanted.
+assets/%.bmp: $(ASSET_SRCDIR)/%.png tools/png2bmp.py
+	python3 tools/png2bmp.py $< $@
 
 assets/%.mdl: $(ASSET_SRCDIR)/%.obj tools/obj2model.py
 	python3 tools/obj2model.py $< $@
