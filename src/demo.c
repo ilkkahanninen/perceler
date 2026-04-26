@@ -5,6 +5,7 @@
 #include "scenes/model_wireframe.h"
 #include "scenes/plasma.h"
 #include "scenes/polyhedra.h"
+#include "scenes/shaded_cube.h"
 #include "scenes/textured_cube.h"
 #include "scenes/tunnel.h"
 #include "utils/timing.h"
@@ -18,6 +19,7 @@ TimelineEntry demo_timeline[] = {
     {&model_flatshade_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&model_gouraud_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&textured_cube_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    {&shaded_cube_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&polyhedra_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&plasma_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&tunnel_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
