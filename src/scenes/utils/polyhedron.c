@@ -199,9 +199,18 @@ static const PolyData *select_data(PolyhedronKind kind)
 /* ------------------------------------------------------------------ */
 /* Triangle emitter                                                    */
 /* ------------------------------------------------------------------ */
-static void emit_tri(Model *m, int i, Vec3 a, Vec3 b, Vec3 c, Vec3 n)
+
+/* UV is Q8.8: 256 = 1.0 = one texture wrap. */
+typedef struct
+{
+  int u, v;
+} Uv88;
+
+static void emit_tri(Model *m, int i, Vec3 a, Vec3 b, Vec3 c, Vec3 n,
+                     Uv88 ua, Uv88 ub, Uv88 uc)
 {
   int po = i * 9;
+  int uo = i * 6;
   int no = i * 3;
   int vno = i * 9;
   int nx = q88(n.x), ny = q88(n.y), nz = q88(n.z);
@@ -215,6 +224,12 @@ static void emit_tri(Model *m, int i, Vec3 a, Vec3 b, Vec3 c, Vec3 n)
   m->positions[po + 6] = q88(c.x);
   m->positions[po + 7] = q88(c.y);
   m->positions[po + 8] = q88(c.z);
+  m->uvs[uo + 0] = ua.u;
+  m->uvs[uo + 1] = ua.v;
+  m->uvs[uo + 2] = ub.u;
+  m->uvs[uo + 3] = ub.v;
+  m->uvs[uo + 4] = uc.u;
+  m->uvs[uo + 5] = uc.v;
   m->face_normals[no + 0] = nx;
   m->face_normals[no + 1] = ny;
   m->face_normals[no + 2] = nz;
@@ -227,6 +242,30 @@ static void emit_tri(Model *m, int i, Vec3 a, Vec3 b, Vec3 c, Vec3 n)
     m->vertex_normals[vno + j * 3 + 1] = ny;
     m->vertex_normals[vno + j * 3 + 2] = nz;
   }
+}
+
+/* Per-face UV table: each polygon's vertices map onto the unit square
+ * so a square texture is laid across each face exactly once.
+ *   triangle face (3 verts): uses the lower triangle of the texture
+ *                            (0,0), (1,0), (0,1)
+ *   quad face     (4 verts): full square (0,0), (1,0), (1,1), (0,1)
+ * Larger faces (would only matter if pentagons/hexagons are added)
+ * fall back to (0,0) — caller can override later. */
+static Uv88 face_uv(int face_size, int idx)
+{
+  Uv88 r = {0, 0};
+  if (face_size == 3)
+  {
+    if (idx == 1) { r.u = 256; r.v = 0; }
+    else if (idx == 2) { r.u = 0; r.v = 256; }
+  }
+  else if (face_size == 4)
+  {
+    if (idx == 1) { r.u = 256; r.v = 0; }
+    else if (idx == 2) { r.u = 256; r.v = 256; }
+    else if (idx == 3) { r.u = 0; r.v = 256; }
+  }
+  return r;
 }
 
 /* Biggest face any supported polyhedron has (cube = 4). Keep the stack
@@ -271,14 +310,14 @@ Model *polyhedron_create(PolyhedronKind kind, int extrude_fp, int scale_fp)
     model_free(m);
     return 0;
   }
-  memset(m->uvs, 0, (unsigned)num_tri * 6 * sizeof(int));
-
   out = 0;
   for (f = 0; f < d->num_faces; f++)
   {
     const int *idx = &d->faces[f * fs];
     Vec3 centroid = {0.0f, 0.0f, 0.0f};
     Vec3 normal, offset;
+    Uv88 uv_bl = {0, 256}, uv_br = {256, 256};
+    Uv88 uv_tr = {256, 0},  uv_tl = {0, 0};
 
     /* Collect face vertices (pre-scaled to unit circumradius). */
     for (i = 0; i < fs; i++)
@@ -291,7 +330,8 @@ Model *polyhedron_create(PolyhedronKind kind, int extrude_fp, int scale_fp)
     if (!extruding)
     {
       for (i = 1; i < fs - 1; i++)
-        emit_tri(m, out++, face[0], face[i], face[i + 1], normal);
+        emit_tri(m, out++, face[0], face[i], face[i + 1], normal,
+                 face_uv(fs, 0), face_uv(fs, i), face_uv(fs, i + 1));
       continue;
     }
 
@@ -316,13 +356,15 @@ Model *polyhedron_create(PolyhedronKind kind, int extrude_fp, int scale_fp)
 
     /* Top face (fan-triangulated). */
     for (i = 1; i < fs - 1; i++)
-      emit_tri(m, out++, top[0], top[i], top[i + 1], normal);
+      emit_tri(m, out++, top[0], top[i], top[i + 1], normal,
+               face_uv(fs, 0), face_uv(fs, i), face_uv(fs, i + 1));
 
     /* Side walls: CCW from outside is bottom[i] -> bottom[j] -> top[j]
      * -> top[i]. Split into two triangles. Wall normal from (b1-b0) ×
      * (t0-b0). When scale→0 the quad degenerates toward the top apex;
      * emit_tri still works (normal might be near-zero if everything
-     * coincides, but that's an edge case the caller can avoid). */
+     * coincides, but that's an edge case the caller can avoid). UVs on
+     * extruded walls map the 4-corner quad onto the unit square. */
     for (i = 0; i < fs; i++)
     {
       int j = (i + 1) % fs;
@@ -330,8 +372,8 @@ Model *polyhedron_create(PolyhedronKind kind, int extrude_fp, int scale_fp)
       Vec3 t0 = top[i], t1 = top[j];
       Vec3 wall_normal = v_normalize(v_cross(v_sub(b1, b0), v_sub(t0, b0)));
 
-      emit_tri(m, out++, b0, b1, t1, wall_normal);
-      emit_tri(m, out++, b0, t1, t0, wall_normal);
+      emit_tri(m, out++, b0, b1, t1, wall_normal, uv_bl, uv_br, uv_tr);
+      emit_tri(m, out++, b0, t1, t0, wall_normal, uv_bl, uv_tr, uv_tl);
     }
   }
 
