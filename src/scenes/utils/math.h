@@ -32,6 +32,12 @@ extern const unsigned char sintab[256];
 #define INT_TO_FP(x) ((x) << FP_SHIFT)
 #define FP_TO_INT(x) ((x) >> FP_SHIFT)
 
+/* Convert a float to 8.8 fixed-point with round-to-nearest. Suitable
+ * for asset-compile-time / setup-time conversions; the argument is
+ * evaluated twice, so pass a plain value or copy into a temporary. */
+#define FLOAT_TO_FP(x) \
+  ((int)((x) * 256.0f + ((x) >= 0.0f ? 0.5f : -0.5f)))
+
 /* Fixed-point multiplication: (a * b) >> 8 */
 #define FP_MUL(a, b) ((int)(((long)(a) * (long)(b)) >> FP_SHIFT))
 

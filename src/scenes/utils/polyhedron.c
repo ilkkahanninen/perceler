@@ -78,14 +78,6 @@ static Vec3 v_normalize(Vec3 a)
   return r;
 }
 
-/* Round-to-nearest float → Q8.8. */
-static int q88(float x)
-{
-  if (x >= 0.0f)
-    return (int)(x * 256.0f + 0.5f);
-  return -(int)(-x * 256.0f + 0.5f);
-}
-
 /* ------------------------------------------------------------------ */
 /* Polyhedron data — vertices pre-normalised to circumradius 1.        */
 /* ------------------------------------------------------------------ */
@@ -213,17 +205,17 @@ static void emit_tri(Model *m, int i, Vec3 a, Vec3 b, Vec3 c, Vec3 n,
   int uo = i * 6;
   int no = i * 3;
   int vno = i * 9;
-  int nx = q88(n.x), ny = q88(n.y), nz = q88(n.z);
+  int nx = FLOAT_TO_FP(n.x), ny = FLOAT_TO_FP(n.y), nz = FLOAT_TO_FP(n.z);
   int j;
-  m->positions[po + 0] = q88(a.x);
-  m->positions[po + 1] = q88(a.y);
-  m->positions[po + 2] = q88(a.z);
-  m->positions[po + 3] = q88(b.x);
-  m->positions[po + 4] = q88(b.y);
-  m->positions[po + 5] = q88(b.z);
-  m->positions[po + 6] = q88(c.x);
-  m->positions[po + 7] = q88(c.y);
-  m->positions[po + 8] = q88(c.z);
+  m->positions[po + 0] = FLOAT_TO_FP(a.x);
+  m->positions[po + 1] = FLOAT_TO_FP(a.y);
+  m->positions[po + 2] = FLOAT_TO_FP(a.z);
+  m->positions[po + 3] = FLOAT_TO_FP(b.x);
+  m->positions[po + 4] = FLOAT_TO_FP(b.y);
+  m->positions[po + 5] = FLOAT_TO_FP(b.z);
+  m->positions[po + 6] = FLOAT_TO_FP(c.x);
+  m->positions[po + 7] = FLOAT_TO_FP(c.y);
+  m->positions[po + 8] = FLOAT_TO_FP(c.z);
   m->uvs[uo + 0] = ua.u;
   m->uvs[uo + 1] = ua.v;
   m->uvs[uo + 2] = ub.u;

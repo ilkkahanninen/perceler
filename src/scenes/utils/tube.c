@@ -61,13 +61,6 @@ static Vec3 v_rotate(Vec3 v, Vec3 k, float angle)
             v.z * c + kxv.z * s + k.z * kdv * (1.0f - c));
 }
 
-static int q88(float x)
-{
-  if (x >= 0.0f)
-    return (int)(x * 256.0f + 0.5f);
-  return -(int)(-x * 256.0f + 0.5f);
-}
-
 static Vec3 fp_to_v3(const int *p)
 {
   return v3((float)p[0] / 256.0f, (float)p[1] / 256.0f, (float)p[2] / 256.0f);
@@ -294,37 +287,37 @@ static Model *build_tube(const int *path, int num_points,
         uo = ti * 6;
         no = ti * 3;
         vno = ti * 9;
-        m->positions[po + 0] = q88(p0.x);
-        m->positions[po + 1] = q88(p0.y);
-        m->positions[po + 2] = q88(p0.z);
-        m->positions[po + 3] = q88(p1.x);
-        m->positions[po + 4] = q88(p1.y);
-        m->positions[po + 5] = q88(p1.z);
-        m->positions[po + 6] = q88(p2.x);
-        m->positions[po + 7] = q88(p2.y);
-        m->positions[po + 8] = q88(p2.z);
+        m->positions[po + 0] = FLOAT_TO_FP(p0.x);
+        m->positions[po + 1] = FLOAT_TO_FP(p0.y);
+        m->positions[po + 2] = FLOAT_TO_FP(p0.z);
+        m->positions[po + 3] = FLOAT_TO_FP(p1.x);
+        m->positions[po + 4] = FLOAT_TO_FP(p1.y);
+        m->positions[po + 5] = FLOAT_TO_FP(p1.z);
+        m->positions[po + 6] = FLOAT_TO_FP(p2.x);
+        m->positions[po + 7] = FLOAT_TO_FP(p2.y);
+        m->positions[po + 8] = FLOAT_TO_FP(p2.z);
         m->uvs[uo + 0] = u0v0u; m->uvs[uo + 1] = u0v0v;
         m->uvs[uo + 2] = u1v1u; m->uvs[uo + 3] = u1v1v;
         m->uvs[uo + 4] = u2v2u; m->uvs[uo + 5] = u2v2v;
-        m->face_normals[no + 0] = q88(fnv.x);
-        m->face_normals[no + 1] = q88(fnv.y);
-        m->face_normals[no + 2] = q88(fnv.z);
+        m->face_normals[no + 0] = FLOAT_TO_FP(fnv.x);
+        m->face_normals[no + 1] = FLOAT_TO_FP(fnv.y);
+        m->face_normals[no + 2] = FLOAT_TO_FP(fnv.z);
 
         if (flags & POLYHEDRON_SMOOTH)
         {
-          m->vertex_normals[vno + 0] = q88(vn0.x);
-          m->vertex_normals[vno + 1] = q88(vn0.y);
-          m->vertex_normals[vno + 2] = q88(vn0.z);
-          m->vertex_normals[vno + 3] = q88(vn1.x);
-          m->vertex_normals[vno + 4] = q88(vn1.y);
-          m->vertex_normals[vno + 5] = q88(vn1.z);
-          m->vertex_normals[vno + 6] = q88(vn2.x);
-          m->vertex_normals[vno + 7] = q88(vn2.y);
-          m->vertex_normals[vno + 8] = q88(vn2.z);
+          m->vertex_normals[vno + 0] = FLOAT_TO_FP(vn0.x);
+          m->vertex_normals[vno + 1] = FLOAT_TO_FP(vn0.y);
+          m->vertex_normals[vno + 2] = FLOAT_TO_FP(vn0.z);
+          m->vertex_normals[vno + 3] = FLOAT_TO_FP(vn1.x);
+          m->vertex_normals[vno + 4] = FLOAT_TO_FP(vn1.y);
+          m->vertex_normals[vno + 5] = FLOAT_TO_FP(vn1.z);
+          m->vertex_normals[vno + 6] = FLOAT_TO_FP(vn2.x);
+          m->vertex_normals[vno + 7] = FLOAT_TO_FP(vn2.y);
+          m->vertex_normals[vno + 8] = FLOAT_TO_FP(vn2.z);
         }
         else
         {
-          int nx = q88(fnv.x), ny = q88(fnv.y), nz = q88(fnv.z);
+          int nx = FLOAT_TO_FP(fnv.x), ny = FLOAT_TO_FP(fnv.y), nz = FLOAT_TO_FP(fnv.z);
           for (j = 0; j < 3; j++)
           {
             m->vertex_normals[vno + j * 3 + 0] = nx;
