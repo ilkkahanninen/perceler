@@ -24,9 +24,11 @@ static const Camera3D camera = {
 };
 
 static Model *model;
-static int *transformed;        /* num_tris * 9 (positions) */
+static int *transformed;        /* num_verts * 3 (positions) */
 static int *transformed_fnorms; /* num_tris * 3 (face normals) */
-static int num_tris;
+static int *screen_xy;          /* num_verts * 2 */
+static signed char *visible;    /* num_verts */
+static int num_tris, num_verts;
 
 static void set_palette(void)
 {
@@ -40,8 +42,11 @@ static void setup(void)
 {
   model = model_load(ASSET_TEAPOT_MDL, MODEL_WIREFRAME);
   num_tris = model->num_triangles;
-  transformed = (int *)malloc(num_tris * 9 * sizeof(int));
+  num_verts = model->num_vertices;
+  transformed = (int *)malloc(num_verts * 3 * sizeof(int));
   transformed_fnorms = (int *)malloc(num_tris * 3 * sizeof(int));
+  screen_xy = (int *)malloc(num_verts * 2 * sizeof(int));
+  visible = (signed char *)malloc(num_verts);
 }
 
 static void init(const RenderContext *ctx)
@@ -58,6 +63,10 @@ static void shutdown(void)
   transformed = NULL;
   free(transformed_fnorms);
   transformed_fnorms = NULL;
+  free(screen_xy);
+  screen_xy = NULL;
+  free(visible);
+  visible = NULL;
 }
 
 static void render(const RenderContext *ctx)
@@ -65,26 +74,32 @@ static void render(const RenderContext *ctx)
   unsigned char *backbuffer = ctx->backbuffer;
   unsigned char ay = (unsigned char)ctx->frame;
   unsigned char ax = (unsigned char)(ctx->frame >> 1);
+  const int *indices = model->indices;
   int i;
 
   memset(backbuffer, 0, VGA_SIZE);
-  transform_points(transformed, model->positions, num_tris * 3, ay, ax,
+  transform_points(transformed, model->positions, num_verts, ay, ax,
                    camera.cam_z);
   transform_dirs(transformed_fnorms, model->face_normals, num_tris, ay, ax);
+  project_points(&camera, transformed, num_verts, screen_xy, visible);
 
   for (i = 0; i < num_tris; i++)
   {
-    int *v = transformed + i * 9;
+    int i0 = indices[i * 3 + 0];
+    int i1 = indices[i * 3 + 1];
+    int i2 = indices[i * 3 + 2];
+    int *v0 = transformed + i0 * 3;
     int *nr = transformed_fnorms + i * 3;
     int sx0, sy0, sx1, sy1, sx2, sy2;
 
-    if (backface3d(nr, v))
+    if (backface3d(nr, v0))
+      continue;
+    if (!visible[i0] || !visible[i1] || !visible[i2])
       continue;
 
-    if (!project3d(&camera, v[0], v[1], v[2], &sx0, &sy0) ||
-        !project3d(&camera, v[3], v[4], v[5], &sx1, &sy1) ||
-        !project3d(&camera, v[6], v[7], v[8], &sx2, &sy2))
-      continue;
+    sx0 = screen_xy[i0 * 2]; sy0 = screen_xy[i0 * 2 + 1];
+    sx1 = screen_xy[i1 * 2]; sy1 = screen_xy[i1 * 2 + 1];
+    sx2 = screen_xy[i2 * 2]; sy2 = screen_xy[i2 * 2 + 1];
 
     draw_line(backbuffer, sx0, sy0, sx1, sy1, 255);
     draw_line(backbuffer, sx1, sy1, sx2, sy2, 255);

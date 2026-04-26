@@ -49,8 +49,10 @@ static const PolyConfig SHAPES[NUM_SHAPES] = {
 };
 
 static Model *models[NUM_SHAPES];
-static int *transformed; /* sized for the largest model */
-static int max_tris;
+static int *transformed; /* sized for the largest model's vertex count */
+static int *screen_xy;
+static signed char *visible;
+static int max_verts;
 
 static void set_palette(void)
 {
@@ -65,16 +67,20 @@ static void set_palette(void)
 static void polyhedra_setup(void)
 {
   int i;
-  max_tris = 0;
+  max_verts = 0;
   for (i = 0; i < NUM_SHAPES; i++)
   {
     models[i] = polyhedron_create(SHAPES[i].kind, SHAPES[i].extrude,
                                   SHAPES[i].scale, 0);
-    if (models[i] && models[i]->num_triangles > max_tris)
-      max_tris = models[i]->num_triangles;
+    if (models[i] && models[i]->num_vertices > max_verts)
+      max_verts = models[i]->num_vertices;
   }
-  if (max_tris > 0)
-    transformed = (int *)malloc((unsigned)max_tris * 9 * sizeof(int));
+  if (max_verts > 0)
+  {
+    transformed = (int *)malloc((unsigned)max_verts * 3 * sizeof(int));
+    screen_xy = (int *)malloc((unsigned)max_verts * 2 * sizeof(int));
+    visible = (signed char *)malloc((unsigned)max_verts);
+  }
 }
 
 static void polyhedra_init(const RenderContext *ctx)
@@ -96,7 +102,11 @@ static void polyhedra_shutdown(void)
   }
   free(transformed);
   transformed = NULL;
-  max_tris = 0;
+  free(screen_xy);
+  screen_xy = NULL;
+  free(visible);
+  visible = NULL;
+  max_verts = 0;
 }
 
 static void polyhedra_render(const RenderContext *ctx)
@@ -105,7 +115,8 @@ static void polyhedra_render(const RenderContext *ctx)
   unsigned int frame = ctx->frame;
   int shape_idx;
   const Model *m;
-  int num_tris;
+  int num_tris, num_verts;
+  const int *indices;
   int i;
 
   shape_idx = (int)((frame / FRAMES_PER_SHAPE) % NUM_SHAPES);
@@ -116,19 +127,26 @@ static void polyhedra_render(const RenderContext *ctx)
   if (m && transformed)
   {
     num_tris = m->num_triangles;
-    transform_points(transformed, m->positions, num_tris * 3,
+    num_verts = m->num_vertices;
+    indices = m->indices;
+    transform_points(transformed, m->positions, num_verts,
                      (unsigned char)frame, (unsigned char)(frame >> 1),
                      camera.cam_z);
+    project_points(&camera, transformed, num_verts, screen_xy, visible);
 
     for (i = 0; i < num_tris; i++)
     {
-      int *v = transformed + i * 9;
+      int i0 = indices[i * 3 + 0];
+      int i1 = indices[i * 3 + 1];
+      int i2 = indices[i * 3 + 2];
       int sx0, sy0, sx1, sy1, sx2, sy2;
 
-      if (!project3d(&camera, v[0], v[1], v[2], &sx0, &sy0) ||
-          !project3d(&camera, v[3], v[4], v[5], &sx1, &sy1) ||
-          !project3d(&camera, v[6], v[7], v[8], &sx2, &sy2))
+      if (!visible[i0] || !visible[i1] || !visible[i2])
         continue;
+
+      sx0 = screen_xy[i0 * 2]; sy0 = screen_xy[i0 * 2 + 1];
+      sx1 = screen_xy[i1 * 2]; sy1 = screen_xy[i1 * 2 + 1];
+      sx2 = screen_xy[i2 * 2]; sy2 = screen_xy[i2 * 2 + 1];
 
       draw_line(backbuffer, sx0, sy0, sx1, sy1, 200);
       draw_line(backbuffer, sx1, sy1, sx2, sy2, 200);

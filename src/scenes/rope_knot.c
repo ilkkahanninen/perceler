@@ -32,11 +32,14 @@ static const Camera3D camera = {
 
 static Model *rope;
 static Texture *texture;
-static int *transformed;
-static int *transformed_fnorms;
-static int *transformed_vnorms;
+static int *transformed;        /* num_verts * 3 */
+static int *transformed_fnorms; /* num_tris * 3 */
+static int *transformed_vnorms; /* num_verts * 3 */
+static int *vertex_uv;          /* num_verts * 2 (sphere-mapped) */
+static int *screen_xy;          /* num_verts * 2 */
+static signed char *visible;    /* num_verts */
 static unsigned short *zbuffer;
-static int num_tris;
+static int num_tris, num_verts;
 
 /* Build a trefoil-knot polyline, scaled to fit the view frustum. */
 static int *build_path(void)
@@ -66,9 +69,13 @@ static void setup(void)
   free(path);
   texture = texture_load(ASSET_LANDSCAPE_BMP);
   num_tris = rope->num_triangles;
-  transformed = (int *)malloc(num_tris * 9 * sizeof(int));
+  num_verts = rope->num_vertices;
+  transformed = (int *)malloc(num_verts * 3 * sizeof(int));
   transformed_fnorms = (int *)malloc(num_tris * 3 * sizeof(int));
-  transformed_vnorms = (int *)malloc(num_tris * 9 * sizeof(int));
+  transformed_vnorms = (int *)malloc(num_verts * 3 * sizeof(int));
+  vertex_uv = (int *)malloc(num_verts * 2 * sizeof(int));
+  screen_xy = (int *)malloc(num_verts * 2 * sizeof(int));
+  visible = (signed char *)malloc(num_verts);
   zbuffer = (unsigned short *)malloc(VGA_SIZE * sizeof(unsigned short));
 }
 
@@ -90,6 +97,12 @@ static void shutdown(void)
   transformed_fnorms = NULL;
   free(transformed_vnorms);
   transformed_vnorms = NULL;
+  free(vertex_uv);
+  vertex_uv = NULL;
+  free(screen_xy);
+  screen_xy = NULL;
+  free(visible);
+  visible = NULL;
   free(zbuffer);
   zbuffer = NULL;
 }
@@ -99,41 +112,44 @@ static void render(const RenderContext *ctx)
   unsigned char *backbuffer = ctx->backbuffer;
   unsigned char ay = (unsigned char)ctx->frame;
   unsigned char ax = (unsigned char)(ctx->frame >> 1);
+  const int *indices = rope->indices;
   int i;
 
   memset(backbuffer, 0, VGA_SIZE);
-  transform_points(transformed, rope->positions, num_tris * 3, ay, ax,
+  transform_points(transformed, rope->positions, num_verts, ay, ax,
                    camera.cam_z);
   transform_dirs(transformed_fnorms, rope->face_normals, num_tris, ay, ax);
-  transform_dirs(transformed_vnorms, rope->vertex_normals, num_tris * 3,
+  transform_dirs(transformed_vnorms, rope->vertex_normals, num_verts,
                  ay, ax);
+  project_points(&camera, transformed, num_verts, screen_xy, visible);
+  for (i = 0; i < num_verts; i++)
+    sphere_map_uv(transformed_vnorms[i * 3 + 0], transformed_vnorms[i * 3 + 1],
+                  &vertex_uv[i * 2 + 0], &vertex_uv[i * 2 + 1]);
   memset(zbuffer, 0, VGA_SIZE * sizeof(unsigned short));
 
   for (i = 0; i < num_tris; i++)
   {
-    int *v = transformed + i * 9;
+    int i0 = indices[i * 3 + 0];
+    int i1 = indices[i * 3 + 1];
+    int i2 = indices[i * 3 + 2];
+    int *v0 = transformed + i0 * 3;
+    int *v1 = transformed + i1 * 3;
+    int *v2 = transformed + i2 * 3;
     int *fn = transformed_fnorms + i * 3;
-    int *vn = transformed_vnorms + i * 9;
-    int sx0, sy0, sx1, sy1, sx2, sy2;
-    int u0, v0_uv, u1, v1_uv, u2, v2_uv;
 
-    if (backface3d(fn, v))
+    if (backface3d(fn, v0))
       continue;
-
-    if (!project3d(&camera, v[0], v[1], v[2], &sx0, &sy0) ||
-        !project3d(&camera, v[3], v[4], v[5], &sx1, &sy1) ||
-        !project3d(&camera, v[6], v[7], v[8], &sx2, &sy2))
+    if (!visible[i0] || !visible[i1] || !visible[i2])
       continue;
-
-    sphere_map_uv(vn[0], vn[1], &u0, &v0_uv);
-    sphere_map_uv(vn[3], vn[4], &u1, &v1_uv);
-    sphere_map_uv(vn[6], vn[7], &u2, &v2_uv);
 
     fill_triangle_textured_affine(backbuffer, zbuffer,
-                                  sx0, sy0, v[2], u0, v0_uv,
-                                  sx1, sy1, v[5], u1, v1_uv,
-                                  sx2, sy2, v[8], u2, v2_uv,
-                                  texture);
+        screen_xy[i0 * 2], screen_xy[i0 * 2 + 1], v0[2],
+        vertex_uv[i0 * 2], vertex_uv[i0 * 2 + 1],
+        screen_xy[i1 * 2], screen_xy[i1 * 2 + 1], v1[2],
+        vertex_uv[i1 * 2], vertex_uv[i1 * 2 + 1],
+        screen_xy[i2 * 2], screen_xy[i2 * 2 + 1], v2[2],
+        vertex_uv[i2 * 2], vertex_uv[i2 * 2 + 1],
+        texture);
   }
 
   font_draw(&font_default, backbuffer, 4, 4, 255, "rope_knot.c");
