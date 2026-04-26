@@ -642,3 +642,226 @@ void fill_triangle_textured(unsigned char *buf, unsigned short *zb,
     }
   }
 }
+
+void fill_triangle_textured_gouraud(unsigned char *buf, unsigned short *zb,
+                                    int x0, int y0, int z0,
+                                    int u0, int v0, int i0,
+                                    int x1, int y1, int z1,
+                                    int u1, int v1, int i1,
+                                    int x2, int y2, int z2,
+                                    int u2, int v2, int i2,
+                                    const Texture *tex,
+                                    const Colormap *cm)
+{
+  int iz0, iz1, iz2;
+  int uoz0, uoz1, uoz2, voz0, voz1, voz2;
+  int dy_long, dx_long, diz_long, duoz_long, dvoz_long, di_long;
+  int y, half;
+  const unsigned char *texels = tex->pixels;
+  const unsigned char *colormap = cm->map;
+  int log2_size = tex->log2_size;
+  int uv_mask = tex->size - 1;
+  int uv_shift = 8 - log2_size;
+
+  if (!recip_tab_ready)
+    init_recip_tab();
+
+  /* Sort by Y; UVs and intensity travel with each vertex. */
+  if (y0 > y1)
+  {
+    SWAP(x0, x1); SWAP(y0, y1); SWAP(z0, z1);
+    SWAP(u0, u1); SWAP(v0, v1); SWAP(i0, i1);
+  }
+  if (y1 > y2)
+  {
+    SWAP(x1, x2); SWAP(y1, y2); SWAP(z1, z2);
+    SWAP(u1, u2); SWAP(v1, v2); SWAP(i1, i2);
+  }
+  if (y0 > y1)
+  {
+    SWAP(x0, x1); SWAP(y0, y1); SWAP(z0, z1);
+    SWAP(u0, u1); SWAP(v0, v1); SWAP(i0, i1);
+  }
+
+  iz0 = (z0 > 0) ? (int)((1L << 20) / z0) : 0xFFFF;
+  iz1 = (z1 > 0) ? (int)((1L << 20) / z1) : 0xFFFF;
+  iz2 = (z2 > 0) ? (int)((1L << 20) / z2) : 0xFFFF;
+  uoz0 = u0 * iz0; uoz1 = u1 * iz1; uoz2 = u2 * iz2;
+  voz0 = v0 * iz0; voz1 = v1 * iz1; voz2 = v2 * iz2;
+
+  /* 1-pixel early-out (degenerate). */
+  if (y0 == y2 && x0 == x1 && x1 == x2)
+  {
+    if (x0 >= 0 && x0 < VGA_WIDTH && y0 >= 0 && y0 < VGA_HEIGHT)
+    {
+      int idx = y0 * VGA_WIDTH + x0;
+      if (iz0 > zb[idx])
+      {
+        int tu = (u0 >> uv_shift) & uv_mask;
+        int tv = (v0 >> uv_shift) & uv_mask;
+        int texel = texels[(tv << log2_size) + tu];
+        int level = i0 >> 2;
+        if (level < 0) level = 0;
+        else if (level > 63) level = 63;
+        zb[idx] = (unsigned short)iz0;
+        buf[idx] = colormap[(level << 8) | texel];
+      }
+    }
+    return;
+  }
+
+  if (y0 == y2 || y2 < 0 || y0 >= VGA_HEIGHT)
+    return;
+
+  dy_long = y2 - y0;
+  dx_long = DIV_SHIFTED(x2 - x0, dy_long);
+  diz_long = DIV_SHIFTED(iz2 - iz0, dy_long);
+  duoz_long = (uoz2 - uoz0) / dy_long;
+  dvoz_long = (voz2 - voz0) / dy_long;
+  /* Intensity in Q8.8 along edges, same precision as Gouraud raster. */
+  di_long = ((i2 - i0) << 8) / dy_long;
+
+  for (half = 0; half < 2; half++)
+  {
+    int ya, yb, dx_short, diz_short, duoz_short, dvoz_short, di_short;
+    int xl, xr, izl, izr, uozl, uozr, vozl, vozr, il, ir;
+
+    if (half == 0)
+    {
+      int dy = y1 - y0;
+      ya = y0;
+      yb = y1;
+      dx_short = dy ? DIV_SHIFTED(x1 - x0, dy) : 0;
+      diz_short = dy ? DIV_SHIFTED(iz1 - iz0, dy) : 0;
+      duoz_short = dy ? (uoz1 - uoz0) / dy : 0;
+      dvoz_short = dy ? (voz1 - voz0) / dy : 0;
+      di_short = dy ? ((i1 - i0) << 8) / dy : 0;
+      xl = x0 << 8; xr = xl;
+      izl = iz0 << 8; izr = izl;
+      uozl = uoz0; uozr = uoz0;
+      vozl = voz0; vozr = voz0;
+      il = i0 << 8; ir = il;
+    }
+    else
+    {
+      int dy = y2 - y1;
+      ya = y1;
+      yb = y2;
+      dx_short = dy ? DIV_SHIFTED(x2 - x1, dy) : 0;
+      diz_short = dy ? DIV_SHIFTED(iz2 - iz1, dy) : 0;
+      duoz_short = dy ? (uoz2 - uoz1) / dy : 0;
+      dvoz_short = dy ? (voz2 - voz1) / dy : 0;
+      di_short = dy ? ((i2 - i1) << 8) / dy : 0;
+      xl = (x0 << 8) + dx_long * (y1 - y0);
+      xr = x1 << 8;
+      izl = (iz0 << 8) + diz_long * (y1 - y0);
+      izr = iz1 << 8;
+      uozl = uoz0 + duoz_long * (y1 - y0);
+      uozr = uoz1;
+      vozl = voz0 + dvoz_long * (y1 - y0);
+      vozr = voz1;
+      il = (i0 << 8) + di_long * (y1 - y0);
+      ir = i1 << 8;
+    }
+
+    for (y = ya; y < yb; y++)
+    {
+      if (y >= 0 && y < VGA_HEIGHT)
+      {
+        int lx = xl >> 8, rx = xr >> 8;
+        int liz = izl >> 8, riz = izr >> 8;
+        int luoz = uozl, ruoz = uozr;
+        int lvoz = vozl, rvoz = vozr;
+        int li88 = il, ri88 = ir;
+        int sx, ex, off, x;
+        int iz_curr, diz, uoz_curr, duoz, voz_curr, dvoz;
+        int u_q816, v_q816, du_q816, dv_q816;
+        int i_q88, di_q88;
+        int sub;
+
+        if (lx > rx)
+        {
+          SWAP(lx, rx); SWAP(liz, riz);
+          SWAP(luoz, ruoz); SWAP(lvoz, rvoz);
+          SWAP(li88, ri88);
+        }
+
+        sx = lx < 0 ? 0 : lx;
+        ex = rx >= VGA_WIDTH ? VGA_WIDTH - 1 : rx;
+
+        if (sx <= ex)
+        {
+          int span = rx - lx;
+          off = y * VGA_WIDTH;
+          diz = span ? DIV_PLAIN(riz - liz, span) : 0;
+          duoz = span ? (ruoz - luoz) / span : 0;
+          dvoz = span ? (rvoz - lvoz) / span : 0;
+          di_q88 = span ? DIV_PLAIN(ri88 - li88, span) : 0;
+          iz_curr = liz + diz * (sx - lx);
+          uoz_curr = luoz + duoz * (sx - lx);
+          voz_curr = lvoz + dvoz * (sx - lx);
+          i_q88 = li88 + di_q88 * (sx - lx);
+
+          u_q816 = (iz_curr > 0 ? (uoz_curr / iz_curr) : 0) << 8;
+          v_q816 = (iz_curr > 0 ? (voz_curr / iz_curr) : 0) << 8;
+          du_q816 = 0;
+          dv_q816 = 0;
+          sub = 0;
+
+          for (x = sx; x <= ex; x++)
+          {
+            if (sub == 0)
+            {
+              int chunk = TEX_SUBDIV;
+              int iz_ahead, uoz_ahead, voz_ahead;
+              int u_ahead_q88, v_ahead_q88;
+              if (x + chunk > ex) chunk = ex - x;
+              if (chunk < 1) chunk = 1;
+
+              iz_ahead = iz_curr + diz * chunk;
+              uoz_ahead = uoz_curr + duoz * chunk;
+              voz_ahead = voz_curr + dvoz * chunk;
+              u_ahead_q88 = iz_ahead > 0 ? uoz_ahead / iz_ahead
+                                         : (u_q816 >> 8);
+              v_ahead_q88 = iz_ahead > 0 ? voz_ahead / iz_ahead
+                                         : (v_q816 >> 8);
+              du_q816 = ((u_ahead_q88 << 8) - u_q816) / chunk;
+              dv_q816 = ((v_ahead_q88 << 8) - v_q816) / chunk;
+              sub = chunk;
+            }
+
+            if (iz_curr > zb[off + x])
+            {
+              int tu = (u_q816 >> (uv_shift + 8)) & uv_mask;
+              int tv = (v_q816 >> (uv_shift + 8)) & uv_mask;
+              int texel = texels[(tv << log2_size) + tu];
+              /* intensity_q88 / 4 = level (0..63), clamped. */
+              int level = i_q88 >> 10;
+              if (level < 0) level = 0;
+              else if (level > 63) level = 63;
+              zb[off + x] = (unsigned short)iz_curr;
+              buf[off + x] = colormap[(level << 8) | texel];
+            }
+            iz_curr += diz;
+            uoz_curr += duoz;
+            voz_curr += dvoz;
+            u_q816 += du_q816;
+            v_q816 += dv_q816;
+            i_q88 += di_q88;
+            sub--;
+          }
+        }
+      }
+      xl += dx_long;
+      xr += dx_short;
+      izl += diz_long;
+      izr += diz_short;
+      uozl += duoz_long;
+      uozr += duoz_short;
+      vozl += dvoz_long;
+      vozr += dvoz_short;
+      il += di_long;
+      ir += di_short;
+    }
+  }
+}

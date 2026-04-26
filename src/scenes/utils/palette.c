@@ -95,3 +95,60 @@ void palette_fade(Palette *dst, const Palette *src,
     pd += 3;
   }
 }
+
+/* Find the palette entry closest to (r, g, b) by squared distance. */
+static unsigned char closest_palette_entry(const Palette *pal,
+                                           int r, int g, int b)
+{
+  int best_idx = 0;
+  long best_dist = 0x7FFFFFFFL;
+  int i;
+  for (i = 0; i < 256; i++)
+  {
+    int dr = (int)pal->entries[i][0] - r;
+    int dg = (int)pal->entries[i][1] - g;
+    int db = (int)pal->entries[i][2] - b;
+    long d = (long)dr * dr + (long)dg * dg + (long)db * db;
+    if (d < best_dist)
+    {
+      best_dist = d;
+      best_idx = i;
+      if (d == 0)
+        break;
+    }
+  }
+  return (unsigned char)best_idx;
+}
+
+void colormap_build(Colormap *dst, const Palette *pal)
+{
+  int level, texel;
+  for (level = 0; level < 64; level++)
+  {
+    for (texel = 0; texel < 256; texel++)
+    {
+      int sr = pal->entries[texel][0];
+      int sg = pal->entries[texel][1];
+      int sb = pal->entries[texel][2];
+      int r, g, b;
+
+      if (level <= 32)
+      {
+        /* Darken: lerp from black to source. */
+        r = sr * level / 32;
+        g = sg * level / 32;
+        b = sb * level / 32;
+      }
+      else
+      {
+        /* Brighten: lerp from source to white (63 in DAC range). */
+        int t = level - 32;
+        r = sr + (63 - sr) * t / 31;
+        g = sg + (63 - sg) * t / 31;
+        b = sb + (63 - sb) * t / 31;
+      }
+      dst->map[(level << 8) | texel] =
+          closest_palette_entry(pal, r, g, b);
+    }
+  }
+}

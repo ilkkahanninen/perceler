@@ -42,4 +42,24 @@ void palette_lerp(Palette *dst, const Palette *a, const Palette *b, int t);
 void palette_fade(Palette *dst, const Palette *src,
                   unsigned char r, unsigned char g, unsigned char b, int t);
 
+/*
+ * Colormap LUT: maps (intensity_level, texel_index) -> palette index.
+ *
+ * Built once per scene from the palette that's actually live on the
+ * VGA DAC. Lets the texture rasterizer apply per-pixel shading via a
+ * single byte lookup — no per-pixel multiplies, ideal for indexed
+ * 8-bit rendering (the Doom/Quake "COLORMAP" trick).
+ *
+ * Layout matches PaletteLevels: 64 levels where 0 = black, 32 =
+ * original, 63 = white. Index lookup is `map[(level << 8) | texel]`.
+ */
+typedef struct
+{
+  unsigned char map[64 * 256];
+} Colormap;
+
+/* Build a colormap by darkening/brightening each palette entry to each
+ * of 64 levels and finding the nearest entry in the same palette. */
+void colormap_build(Colormap *dst, const Palette *pal);
+
 #endif

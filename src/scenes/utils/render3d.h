@@ -88,16 +88,33 @@ Texture *texture_load(Asset asset);
 /* Free a texture returned by texture_load(). */
 void texture_free(Texture *tex);
 
-/* Z-buffered affine texture-mapped triangle rasterizer.
+/* Z-buffered perspective-correct texture-mapped triangle rasterizer.
  * (x0,y0) etc. are screen-space integer coords; z values are the
  * triangle's pre-projection view-space z (Q8.8) used for 1/z depth;
  * (u0,v0) etc. are Q8.8 texture coordinates where 256 == one full
- * texture wrap.  UVs are interpolated linearly in screen space — fast
- * but with the classic affine "swimming" on big near-camera triangles. */
+ * texture wrap.  Internally interpolates u/z, v/z, 1/z linearly across
+ * the triangle and recovers UV via subdivided-affine (one divide every
+ * TEX_SUBDIV pixels) — Quake 1's classic perspective trick. */
 void fill_triangle_textured(unsigned char *buf, unsigned short *zb,
                             int x0, int y0, int z0, int u0, int v0,
                             int x1, int y1, int z1, int u1, int v1,
                             int x2, int y2, int z2, int u2, int v2,
                             const Texture *tex);
+
+/* Z-buffered perspective-correct textured Gouraud rasterizer.
+ * Same as fill_triangle_textured plus a per-vertex 0..255 intensity
+ * (i0/i1/i2) interpolated affinely across the triangle.  Per pixel the
+ * sampled texel and the (intensity >> 2) brightness level index a
+ * 64×256 colormap LUT, giving smooth shading on indexed-colour textures
+ * with no per-pixel multiplies. */
+void fill_triangle_textured_gouraud(unsigned char *buf, unsigned short *zb,
+                                    int x0, int y0, int z0,
+                                    int u0, int v0, int i0,
+                                    int x1, int y1, int z1,
+                                    int u1, int v1, int i1,
+                                    int x2, int y2, int z2,
+                                    int u2, int v2, int i2,
+                                    const Texture *tex,
+                                    const Colormap *cm);
 
 #endif
