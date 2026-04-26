@@ -3,7 +3,10 @@
  *
  * Vertex + face tables are defined in floats (normalised to circumradius 1);
  * the generator walks each face, fan-triangulates it, and emits Q8.8 ints
- * into a freshly-allocated Model.
+ * into temporary per-triangle-vertex arrays. Those arrays are then handed
+ * to model_build_indexed() which dedupes vertices and produces the final
+ * indexed Model. With POLYHEDRON_SMOOTH the dedup merges by position and
+ * averages adjacent face normals into the shared vertex normal.
  *
  * When extrusion is non-zero, each face is rebuilt as a prism:
  *   - The extruded "top" polygon, fan-triangulated.
@@ -82,23 +85,19 @@ static Vec3 v_normalize(Vec3 a)
 /* Polyhedron data — vertices pre-normalised to circumradius 1.        */
 /* ------------------------------------------------------------------ */
 
-/* Circumradius of raw vertex lists (used once at init; the tables are
- * then interpreted as-is and scaled by 1/R on read). */
 #define SQRT3  1.7320508075688772f
 #define PHI    1.6180339887498949f
-/* Icosahedron circumradius for vertices (0,±1,±φ) etc. is sqrt(1+φ²). */
 #define ICOSA_R 1.9021130325903071f
 
 typedef struct
 {
-  const Vec3 *verts;  /* raw vertex positions */
-  float scale;        /* 1/circumradius — applied to make radius 1 */
-  const int *faces;   /* flat array, face_size indices per face */
+  const Vec3 *verts;
+  float scale;
+  const int *faces;
   int face_size;
   int num_faces;
 } PolyData;
 
-/* --- Tetrahedron (circumradius √3) --- */
 static const Vec3 tet_verts[4] = {
     { 1.0f,  1.0f,  1.0f},
     {-1.0f, -1.0f,  1.0f},
@@ -113,36 +112,33 @@ static const int tet_faces[4 * 3] = {
 };
 static const PolyData POLY_TET = {tet_verts, 1.0f / SQRT3, tet_faces, 3, 4};
 
-/* --- Cube (circumradius √3) --- */
 static const Vec3 cube_verts[8] = {
-    {-1.0f, -1.0f, -1.0f}, /* 0 */
-    { 1.0f, -1.0f, -1.0f}, /* 1 */
-    { 1.0f,  1.0f, -1.0f}, /* 2 */
-    {-1.0f,  1.0f, -1.0f}, /* 3 */
-    {-1.0f, -1.0f,  1.0f}, /* 4 */
-    { 1.0f, -1.0f,  1.0f}, /* 5 */
-    { 1.0f,  1.0f,  1.0f}, /* 6 */
-    {-1.0f,  1.0f,  1.0f}, /* 7 */
+    {-1.0f, -1.0f, -1.0f},
+    { 1.0f, -1.0f, -1.0f},
+    { 1.0f,  1.0f, -1.0f},
+    {-1.0f,  1.0f, -1.0f},
+    {-1.0f, -1.0f,  1.0f},
+    { 1.0f, -1.0f,  1.0f},
+    { 1.0f,  1.0f,  1.0f},
+    {-1.0f,  1.0f,  1.0f},
 };
-/* Faces in CCW order when viewed from outside. */
 static const int cube_faces[6 * 4] = {
-    4, 5, 6, 7, /* +z front */
-    1, 0, 3, 2, /* -z back  */
-    7, 6, 2, 3, /* +y top   */
-    0, 1, 5, 4, /* -y bottom*/
-    5, 1, 2, 6, /* +x right */
-    0, 4, 7, 3, /* -x left  */
+    4, 5, 6, 7,
+    1, 0, 3, 2,
+    7, 6, 2, 3,
+    0, 1, 5, 4,
+    5, 1, 2, 6,
+    0, 4, 7, 3,
 };
 static const PolyData POLY_CUBE = {cube_verts, 1.0f / SQRT3, cube_faces, 4, 6};
 
-/* --- Octahedron (circumradius 1) --- */
 static const Vec3 oct_verts[6] = {
-    { 1.0f,  0.0f,  0.0f}, /* 0 +x */
-    {-1.0f,  0.0f,  0.0f}, /* 1 -x */
-    { 0.0f,  1.0f,  0.0f}, /* 2 +y */
-    { 0.0f, -1.0f,  0.0f}, /* 3 -y */
-    { 0.0f,  0.0f,  1.0f}, /* 4 +z */
-    { 0.0f,  0.0f, -1.0f}, /* 5 -z */
+    { 1.0f,  0.0f,  0.0f},
+    {-1.0f,  0.0f,  0.0f},
+    { 0.0f,  1.0f,  0.0f},
+    { 0.0f, -1.0f,  0.0f},
+    { 0.0f,  0.0f,  1.0f},
+    { 0.0f,  0.0f, -1.0f},
 };
 static const int oct_faces[8 * 3] = {
     0, 2, 4,  0, 4, 3,  0, 5, 2,  0, 3, 5,
@@ -150,28 +146,24 @@ static const int oct_faces[8 * 3] = {
 };
 static const PolyData POLY_OCT = {oct_verts, 1.0f, oct_faces, 3, 8};
 
-/* --- Icosahedron (circumradius √(1+φ²)) --- */
 static const Vec3 ico_verts[12] = {
-    { 0.0f,  1.0f,   PHI},  /* 0  */
-    { 0.0f, -1.0f,   PHI},  /* 1  */
-    { 0.0f,  1.0f,  -PHI},  /* 2  */
-    { 0.0f, -1.0f,  -PHI},  /* 3  */
-    { 1.0f,   PHI,  0.0f},  /* 4  */
-    {-1.0f,   PHI,  0.0f},  /* 5  */
-    { 1.0f,  -PHI,  0.0f},  /* 6  */
-    {-1.0f,  -PHI,  0.0f},  /* 7  */
-    {  PHI,  0.0f,  1.0f},  /* 8  */
-    { -PHI,  0.0f,  1.0f},  /* 9  */
-    {  PHI,  0.0f, -1.0f},  /* 10 */
-    { -PHI,  0.0f, -1.0f},  /* 11 */
+    { 0.0f,  1.0f,   PHI},
+    { 0.0f, -1.0f,   PHI},
+    { 0.0f,  1.0f,  -PHI},
+    { 0.0f, -1.0f,  -PHI},
+    { 1.0f,   PHI,  0.0f},
+    {-1.0f,   PHI,  0.0f},
+    { 1.0f,  -PHI,  0.0f},
+    {-1.0f,  -PHI,  0.0f},
+    {  PHI,  0.0f,  1.0f},
+    { -PHI,  0.0f,  1.0f},
+    {  PHI,  0.0f, -1.0f},
+    { -PHI,  0.0f, -1.0f},
 };
 static const int ico_faces[20 * 3] = {
-    /* top cap around V0 */
     0,  1,  8,   0,  8,  4,   0,  4,  5,   0,  5,  9,   0,  9,  1,
-    /* middle ring */
     1,  6,  8,   8,  6, 10,   8, 10,  4,   4, 10,  2,   4,  2,  5,
     5,  2, 11,   5, 11,  9,   9, 11,  7,   9,  7,  1,   1,  7,  6,
-    /* bottom cap around V3 */
     3,  2, 10,   3, 10,  6,   3,  6,  7,   3,  7, 11,   3, 11,  2,
 };
 static const PolyData POLY_ICO = {ico_verts, 1.0f / ICOSA_R, ico_faces, 3, 20};
@@ -192,13 +184,21 @@ static const PolyData *select_data(PolyhedronKind kind)
 /* Triangle emitter                                                    */
 /* ------------------------------------------------------------------ */
 
-/* UV is Q8.8: 256 = 1.0 = one texture wrap. */
 typedef struct
 {
   int u, v;
 } Uv88;
 
-static void emit_tri(Model *m, int i, Vec3 a, Vec3 b, Vec3 c, Vec3 n,
+typedef struct
+{
+  int *positions;     /* num_tri * 9 */
+  int *uvs;           /* num_tri * 6 */
+  int *face_normals;  /* num_tri * 3 */
+  int *vertex_normals;/* num_tri * 9 — vn = fn for now; smoothing is
+                       *               applied later by the indexer. */
+} RawTris;
+
+static void emit_tri(RawTris *r, int i, Vec3 a, Vec3 b, Vec3 c, Vec3 n,
                      Uv88 ua, Uv88 ub, Uv88 uc)
 {
   int po = i * 9;
@@ -207,42 +207,32 @@ static void emit_tri(Model *m, int i, Vec3 a, Vec3 b, Vec3 c, Vec3 n,
   int vno = i * 9;
   int nx = FLOAT_TO_FP(n.x), ny = FLOAT_TO_FP(n.y), nz = FLOAT_TO_FP(n.z);
   int j;
-  m->positions[po + 0] = FLOAT_TO_FP(a.x);
-  m->positions[po + 1] = FLOAT_TO_FP(a.y);
-  m->positions[po + 2] = FLOAT_TO_FP(a.z);
-  m->positions[po + 3] = FLOAT_TO_FP(b.x);
-  m->positions[po + 4] = FLOAT_TO_FP(b.y);
-  m->positions[po + 5] = FLOAT_TO_FP(b.z);
-  m->positions[po + 6] = FLOAT_TO_FP(c.x);
-  m->positions[po + 7] = FLOAT_TO_FP(c.y);
-  m->positions[po + 8] = FLOAT_TO_FP(c.z);
-  m->uvs[uo + 0] = ua.u;
-  m->uvs[uo + 1] = ua.v;
-  m->uvs[uo + 2] = ub.u;
-  m->uvs[uo + 3] = ub.v;
-  m->uvs[uo + 4] = uc.u;
-  m->uvs[uo + 5] = uc.v;
-  m->face_normals[no + 0] = nx;
-  m->face_normals[no + 1] = ny;
-  m->face_normals[no + 2] = nz;
-  /* Polyhedra are flat-shaded by construction: every vertex of the
-   * triangle uses the face normal, so a Gouraud rasterizer reduces
-   * to flat shading without any branch. */
+  r->positions[po + 0] = FLOAT_TO_FP(a.x);
+  r->positions[po + 1] = FLOAT_TO_FP(a.y);
+  r->positions[po + 2] = FLOAT_TO_FP(a.z);
+  r->positions[po + 3] = FLOAT_TO_FP(b.x);
+  r->positions[po + 4] = FLOAT_TO_FP(b.y);
+  r->positions[po + 5] = FLOAT_TO_FP(b.z);
+  r->positions[po + 6] = FLOAT_TO_FP(c.x);
+  r->positions[po + 7] = FLOAT_TO_FP(c.y);
+  r->positions[po + 8] = FLOAT_TO_FP(c.z);
+  r->uvs[uo + 0] = ua.u; r->uvs[uo + 1] = ua.v;
+  r->uvs[uo + 2] = ub.u; r->uvs[uo + 3] = ub.v;
+  r->uvs[uo + 4] = uc.u; r->uvs[uo + 5] = uc.v;
+  r->face_normals[no + 0] = nx;
+  r->face_normals[no + 1] = ny;
+  r->face_normals[no + 2] = nz;
+  /* Default vertex normals = face normal. POLYHEDRON_SMOOTH triggers
+   * dedupe-by-position in model_build_indexed which then averages the
+   * face normals across shared vertices. */
   for (j = 0; j < 3; j++)
   {
-    m->vertex_normals[vno + j * 3 + 0] = nx;
-    m->vertex_normals[vno + j * 3 + 1] = ny;
-    m->vertex_normals[vno + j * 3 + 2] = nz;
+    r->vertex_normals[vno + j * 3 + 0] = nx;
+    r->vertex_normals[vno + j * 3 + 1] = ny;
+    r->vertex_normals[vno + j * 3 + 2] = nz;
   }
 }
 
-/* Per-face UV table: each polygon's vertices map onto the unit square
- * so a square texture is laid across each face exactly once.
- *   triangle face (3 verts): uses the lower triangle of the texture
- *                            (0,0), (1,0), (0,1)
- *   quad face     (4 verts): full square (0,0), (1,0), (1,1), (0,1)
- * Larger faces (would only matter if pentagons/hexagons are added)
- * fall back to (0,0) — caller can override later. */
 static Uv88 face_uv(int face_size, int idx)
 {
   Uv88 r = {0, 0};
@@ -260,63 +250,7 @@ static Uv88 face_uv(int face_size, int idx)
   return r;
 }
 
-/* Biggest face any supported polyhedron has (cube = 4). Keep the stack
- * buffers a touch larger in case future additions need pentagons. */
 #define POLY_MAX_FACE_VERTS 8
-
-/* For each vertex, replace its normal with the unit-length sum of the
- * face normals of every triangle that shares the same position. O(n²)
- * over total vertices, fine for polyhedra of a few hundred triangles. */
-static void smooth_vertex_normals(Model *m)
-{
-  int n = m->num_triangles * 3;
-  int i, j;
-  int *out = (int *)malloc((unsigned)n * 3 * sizeof(int));
-  if (!out)
-    return;
-
-  for (i = 0; i < n; i++)
-  {
-    int px = m->positions[i * 3 + 0];
-    int py = m->positions[i * 3 + 1];
-    int pz = m->positions[i * 3 + 2];
-    long sx = 0, sy = 0, sz = 0;
-    float fx, fy, fz, len;
-
-    for (j = 0; j < n; j++)
-    {
-      if (m->positions[j * 3 + 0] == px &&
-          m->positions[j * 3 + 1] == py &&
-          m->positions[j * 3 + 2] == pz)
-      {
-        int t = j / 3;
-        sx += m->face_normals[t * 3 + 0];
-        sy += m->face_normals[t * 3 + 1];
-        sz += m->face_normals[t * 3 + 2];
-      }
-    }
-
-    fx = (float)sx;
-    fy = (float)sy;
-    fz = (float)sz;
-    len = (float)sqrt((double)(fx * fx + fy * fy + fz * fz));
-    if (len > 0.001f)
-    {
-      out[i * 3 + 0] = (int)(fx * 256.0f / len);
-      out[i * 3 + 1] = (int)(fy * 256.0f / len);
-      out[i * 3 + 2] = (int)(fz * 256.0f / len);
-    }
-    else
-    {
-      out[i * 3 + 0] = m->vertex_normals[i * 3 + 0];
-      out[i * 3 + 1] = m->vertex_normals[i * 3 + 1];
-      out[i * 3 + 2] = m->vertex_normals[i * 3 + 2];
-    }
-  }
-
-  memcpy(m->vertex_normals, out, (unsigned)n * 3 * sizeof(int));
-  free(out);
-}
 
 /* ------------------------------------------------------------------ */
 /* Public: generate a Model                                            */
@@ -329,8 +263,10 @@ Model *polyhedron_create(PolyhedronKind kind, int extrude_fp, int scale_fp,
   Vec3 top[POLY_MAX_FACE_VERTS];
   int fs, extruding, tri_per_face, num_tri;
   float extrude, scale, inv_r;
-  Model *m;
+  RawTris raw = {0, 0, 0, 0};
+  Model *m = 0;
   int f, i, out;
+  int dedupe;
 
   if (!d || d->face_size > POLY_MAX_FACE_VERTS)
     return 0;
@@ -344,19 +280,13 @@ Model *polyhedron_create(PolyhedronKind kind, int extrude_fp, int scale_fp,
   tri_per_face = extruding ? (3 * fs - 2) : (fs - 2);
   num_tri = d->num_faces * tri_per_face;
 
-  m = (Model *)malloc(sizeof(Model));
-  if (!m)
-    return 0;
-  m->num_triangles = num_tri;
-  m->positions = (int *)malloc((unsigned)num_tri * 9 * sizeof(int));
-  m->uvs = (int *)malloc((unsigned)num_tri * 6 * sizeof(int));
-  m->face_normals = (int *)malloc((unsigned)num_tri * 3 * sizeof(int));
-  m->vertex_normals = (int *)malloc((unsigned)num_tri * 9 * sizeof(int));
-  if (!m->positions || !m->uvs || !m->face_normals || !m->vertex_normals)
-  {
-    model_free(m);
-    return 0;
-  }
+  raw.positions     = (int *)malloc((unsigned)num_tri * 9 * sizeof(int));
+  raw.uvs           = (int *)malloc((unsigned)num_tri * 6 * sizeof(int));
+  raw.face_normals  = (int *)malloc((unsigned)num_tri * 3 * sizeof(int));
+  raw.vertex_normals= (int *)malloc((unsigned)num_tri * 9 * sizeof(int));
+  if (!raw.positions || !raw.uvs || !raw.face_normals || !raw.vertex_normals)
+    goto done;
+
   out = 0;
   for (f = 0; f < d->num_faces; f++)
   {
@@ -366,23 +296,20 @@ Model *polyhedron_create(PolyhedronKind kind, int extrude_fp, int scale_fp,
     Uv88 uv_bl = {0, 256}, uv_br = {256, 256};
     Uv88 uv_tr = {256, 0},  uv_tl = {0, 0};
 
-    /* Collect face vertices (pre-scaled to unit circumradius). */
     for (i = 0; i < fs; i++)
       face[i] = v_scale(d->verts[idx[i]], inv_r);
 
-    /* Face normal from the first three vertices (planar assumption). */
     normal = v_normalize(v_cross(v_sub(face[1], face[0]),
                                  v_sub(face[2], face[0])));
 
     if (!extruding)
     {
       for (i = 1; i < fs - 1; i++)
-        emit_tri(m, out++, face[0], face[i], face[i + 1], normal,
+        emit_tri(&raw, out++, face[0], face[i], face[i + 1], normal,
                  face_uv(fs, 0), face_uv(fs, i), face_uv(fs, i + 1));
       continue;
     }
 
-    /* Build the extruded top face. */
     for (i = 0; i < fs; i++)
     {
       centroid.x += face[i].x;
@@ -401,17 +328,10 @@ Model *polyhedron_create(PolyhedronKind kind, int extrude_fp, int scale_fp,
       top[i] = v_add(v_add(centroid, pulled), offset);
     }
 
-    /* Top face (fan-triangulated). */
     for (i = 1; i < fs - 1; i++)
-      emit_tri(m, out++, top[0], top[i], top[i + 1], normal,
+      emit_tri(&raw, out++, top[0], top[i], top[i + 1], normal,
                face_uv(fs, 0), face_uv(fs, i), face_uv(fs, i + 1));
 
-    /* Side walls: CCW from outside is bottom[i] -> bottom[j] -> top[j]
-     * -> top[i]. Split into two triangles. Wall normal from (b1-b0) ×
-     * (t0-b0). When scale→0 the quad degenerates toward the top apex;
-     * emit_tri still works (normal might be near-zero if everything
-     * coincides, but that's an edge case the caller can avoid). UVs on
-     * extruded walls map the 4-corner quad onto the unit square. */
     for (i = 0; i < fs; i++)
     {
       int j = (i + 1) % fs;
@@ -419,13 +339,20 @@ Model *polyhedron_create(PolyhedronKind kind, int extrude_fp, int scale_fp,
       Vec3 t0 = top[i], t1 = top[j];
       Vec3 wall_normal = v_normalize(v_cross(v_sub(b1, b0), v_sub(t0, b0)));
 
-      emit_tri(m, out++, b0, b1, t1, wall_normal, uv_bl, uv_br, uv_tr);
-      emit_tri(m, out++, b0, t1, t0, wall_normal, uv_bl, uv_tr, uv_tl);
+      emit_tri(&raw, out++, b0, b1, t1, wall_normal, uv_bl, uv_br, uv_tr);
+      emit_tri(&raw, out++, b0, t1, t0, wall_normal, uv_bl, uv_tr, uv_tl);
     }
   }
 
-  if (flags & POLYHEDRON_SMOOTH)
-    smooth_vertex_normals(m);
+  dedupe = (flags & POLYHEDRON_SMOOTH) ? 1 : 0;
+  m = model_build_indexed(num_tri,
+                          raw.positions, raw.uvs, raw.vertex_normals,
+                          raw.face_normals, dedupe);
 
+done:
+  free(raw.positions);
+  free(raw.uvs);
+  free(raw.face_normals);
+  free(raw.vertex_normals);
   return m;
 }

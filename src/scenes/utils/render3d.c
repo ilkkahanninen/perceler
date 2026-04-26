@@ -71,6 +71,35 @@ int project3d(const Camera3D *cam, int x, int y, int z, int *sx, int *sy)
   return 1;
 }
 
+void project_points(const Camera3D *cam, const int *points, int count,
+                    int *screen_xy, signed char *visible)
+{
+  int i;
+  int near_z = cam->near_z;
+  int proj_scale = cam->proj_scale;
+  int cx = cam->cx;
+  int cy = cam->cy;
+  for (i = 0; i < count; i++)
+  {
+    int x = points[i * 3 + 0];
+    int y = points[i * 3 + 1];
+    int z = points[i * 3 + 2];
+    if (z < near_z)
+    {
+      screen_xy[i * 2 + 0] = 0;
+      screen_xy[i * 2 + 1] = 0;
+      visible[i] = 0;
+    }
+    else
+    {
+      int s = FP_DIV(proj_scale, z);
+      screen_xy[i * 2 + 0] = cx + FP_TO_INT(FP_MUL(x, s));
+      screen_xy[i * 2 + 1] = cy - FP_TO_INT(FP_MUL(y, s));
+      visible[i] = 1;
+    }
+  }
+}
+
 int backface3d(const int *n, const int *v)
 {
   return FP_MUL(n[0], v[0]) + FP_MUL(n[1], v[1]) + FP_MUL(n[2], v[2]) > 0;

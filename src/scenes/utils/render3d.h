@@ -39,6 +39,15 @@ void transform_dirs(int *dst, const int *src, int count,
  * Returns 0 if z < cam->near_z, 1 otherwise. */
 int project3d(const Camera3D *cam, int x, int y, int z, int *sx, int *sy);
 
+/* Project an array of view-space points in one pass. `points` is an
+ * interleaved (x,y,z) buffer of `count` entries; `screen_xy` receives
+ * `count` (sx, sy) pairs; `visible` receives 1 if the point projected
+ * (z >= near_z) or 0 if it was clipped. Use this to pre-project all
+ * unique vertices of an indexed mesh once, then look up per-triangle
+ * results via the index buffer. */
+void project_points(const Camera3D *cam, const int *points, int count,
+                    int *screen_xy, signed char *visible);
+
 /* View-space backface test. Camera at origin; n is the triangle's
  * outward normal and v is any of its vertices (both transformed).
  * Returns nonzero if the triangle is back-facing. */

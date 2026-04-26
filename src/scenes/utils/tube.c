@@ -4,7 +4,10 @@
  * The mesh is laid out as a grid of (num_points × sides) ring vertices
  * connected by quads, each quad split into two triangles. Vertex
  * positions, normals and UVs are computed at setup time in float, then
- * quantised to Q8.8 on emit.
+ * quantised to Q8.8 on emit. The raw per-triangle-vertex arrays are
+ * deduped by model_build_indexed() into a shared-vertex Model — a ring
+ * vertex shared by 6 triangles is transformed once at runtime instead
+ * of six times.
  *
  * Frames are computed by parallel transport: at each path point i we
  * rotate the previous frame by the minimal rotation that aligns its
@@ -49,7 +52,6 @@ static Vec3 v_normalize(Vec3 a)
   return v3(0.0f, 0.0f, 0.0f);
 }
 
-/* Rodrigues: rotate v around unit-length axis k by angle. */
 static Vec3 v_rotate(Vec3 v, Vec3 k, float angle)
 {
   float c = (float)cos((double)angle);
@@ -90,7 +92,6 @@ static Vec3 path_tangent(const int *path, int num_points, int i)
   return v_normalize(v_sub(b, a));
 }
 
-/* Pick an initial up-vector roughly perpendicular to the first tangent. */
 static Vec3 initial_up(Vec3 tangent)
 {
   if (fabs((double)tangent.y) < 0.9)
@@ -98,8 +99,6 @@ static Vec3 initial_up(Vec3 tangent)
   return v3(1.0f, 0.0f, 0.0f);
 }
 
-/* Compute parallel-transport frames along the whole path. `rights`
- * and `ups` must each hold `num_points` Vec3 entries. */
 static void compute_frames(const int *path, int num_points,
                            Vec3 *rights, Vec3 *ups, Vec3 *tangents)
 {
@@ -125,8 +124,6 @@ static void compute_frames(const int *path, int num_points,
 
     if (axis_len2 < 1e-10f)
     {
-      /* Tangent didn't change direction (or flipped 180°, which we
-       * silently ignore — degenerate paths the caller can avoid). */
       rights[i] = rights[i - 1];
       ups[i] = ups[i - 1];
     }
@@ -149,23 +146,19 @@ static void compute_frames(const int *path, int num_points,
 /* ------------------------------------------------------------------ */
 
 #define TWO_PI_F 6.28318530717958647692f
-
-/* Cross-section radius for the rope variant: base radius modulated by
- * `strands` cosine bumps. Bump amplitude is hard-coded at 25% of the
- * base radius — pleasant for typical strand counts. */
 #define ROPE_BUMP_AMOUNT 0.25f
 
-/* Build the tube. `strands == 0` means smooth circle (no bumps);
- * `strands > 0` enables rope-style modulation and applies `turns`
- * full rotations of the cross-section across the whole path.
- * `turns` is Q8.8 (256 = one full rotation). */
 static Model *build_tube(const int *path, int num_points,
                          int radius_fp, int sides,
                          int strands, int turns_fp, unsigned flags)
 {
   Vec3 *rights = NULL, *ups = NULL, *tangents = NULL;
-  Vec3 *ring_pos = NULL;   /* num_points * sides */
-  Vec3 *ring_norm = NULL;  /* num_points * sides — radial outward */
+  Vec3 *ring_pos = NULL;
+  Vec3 *ring_norm = NULL;
+  int *raw_pos = NULL;
+  int *raw_uv = NULL;
+  int *raw_fn = NULL;
+  int *raw_vn = NULL;
   Model *m = NULL;
   int num_segments, num_tri;
   int i, s, ti;
@@ -174,13 +167,21 @@ static Model *build_tube(const int *path, int num_points,
   if (num_points < 2 || sides < 3)
     return NULL;
 
+  num_segments = num_points - 1;
+  num_tri = num_segments * sides * 2;
+
   rights = (Vec3 *)malloc((unsigned)num_points * sizeof(Vec3));
   ups = (Vec3 *)malloc((unsigned)num_points * sizeof(Vec3));
   tangents = (Vec3 *)malloc((unsigned)num_points * sizeof(Vec3));
   ring_pos = (Vec3 *)malloc((unsigned)num_points * sides * sizeof(Vec3));
   ring_norm = (Vec3 *)malloc((unsigned)num_points * sides * sizeof(Vec3));
-  if (!rights || !ups || !tangents || !ring_pos || !ring_norm)
-    goto fail;
+  raw_pos = (int *)malloc((unsigned)num_tri * 9 * sizeof(int));
+  raw_uv  = (int *)malloc((unsigned)num_tri * 6 * sizeof(int));
+  raw_fn  = (int *)malloc((unsigned)num_tri * 3 * sizeof(int));
+  raw_vn  = (int *)malloc((unsigned)num_tri * 9 * sizeof(int));
+  if (!rights || !ups || !tangents || !ring_pos || !ring_norm ||
+      !raw_pos || !raw_uv || !raw_fn || !raw_vn)
+    goto done;
 
   compute_frames(path, num_points, rights, ups, tangents);
 
@@ -215,24 +216,6 @@ static Model *build_tube(const int *path, int num_points,
     }
   }
 
-  num_segments = num_points - 1;
-  num_tri = num_segments * sides * 2;
-
-  m = (Model *)malloc(sizeof(Model));
-  if (!m)
-    goto fail;
-  m->num_triangles = num_tri;
-  m->positions = (int *)malloc((unsigned)num_tri * 9 * sizeof(int));
-  m->uvs = (int *)malloc((unsigned)num_tri * 6 * sizeof(int));
-  m->face_normals = (int *)malloc((unsigned)num_tri * 3 * sizeof(int));
-  m->vertex_normals = (int *)malloc((unsigned)num_tri * 9 * sizeof(int));
-  if (!m->positions || !m->uvs || !m->face_normals || !m->vertex_normals)
-  {
-    model_free(m);
-    m = NULL;
-    goto fail;
-  }
-
   ti = 0;
   for (i = 0; i < num_segments; i++)
   {
@@ -253,8 +236,7 @@ static Model *build_tube(const int *path, int num_points,
       Vec3 nd = ring_norm[(i + 1) * sides + s];
       int t;
 
-      /* Triangle 1: (a, d, c) — top-left, bottom-left, bottom-right.
-       * Triangle 2: (a, c, b) — top-left, bottom-right, top-right.
+      /* Triangle 1: (a, d, c). Triangle 2: (a, c, b).
        * CCW from outside given the right-handed frame. */
       for (t = 0; t < 2; t++)
       {
@@ -287,42 +269,42 @@ static Model *build_tube(const int *path, int num_points,
         uo = ti * 6;
         no = ti * 3;
         vno = ti * 9;
-        m->positions[po + 0] = FLOAT_TO_FP(p0.x);
-        m->positions[po + 1] = FLOAT_TO_FP(p0.y);
-        m->positions[po + 2] = FLOAT_TO_FP(p0.z);
-        m->positions[po + 3] = FLOAT_TO_FP(p1.x);
-        m->positions[po + 4] = FLOAT_TO_FP(p1.y);
-        m->positions[po + 5] = FLOAT_TO_FP(p1.z);
-        m->positions[po + 6] = FLOAT_TO_FP(p2.x);
-        m->positions[po + 7] = FLOAT_TO_FP(p2.y);
-        m->positions[po + 8] = FLOAT_TO_FP(p2.z);
-        m->uvs[uo + 0] = u0v0u; m->uvs[uo + 1] = u0v0v;
-        m->uvs[uo + 2] = u1v1u; m->uvs[uo + 3] = u1v1v;
-        m->uvs[uo + 4] = u2v2u; m->uvs[uo + 5] = u2v2v;
-        m->face_normals[no + 0] = FLOAT_TO_FP(fnv.x);
-        m->face_normals[no + 1] = FLOAT_TO_FP(fnv.y);
-        m->face_normals[no + 2] = FLOAT_TO_FP(fnv.z);
+        raw_pos[po + 0] = FLOAT_TO_FP(p0.x);
+        raw_pos[po + 1] = FLOAT_TO_FP(p0.y);
+        raw_pos[po + 2] = FLOAT_TO_FP(p0.z);
+        raw_pos[po + 3] = FLOAT_TO_FP(p1.x);
+        raw_pos[po + 4] = FLOAT_TO_FP(p1.y);
+        raw_pos[po + 5] = FLOAT_TO_FP(p1.z);
+        raw_pos[po + 6] = FLOAT_TO_FP(p2.x);
+        raw_pos[po + 7] = FLOAT_TO_FP(p2.y);
+        raw_pos[po + 8] = FLOAT_TO_FP(p2.z);
+        raw_uv[uo + 0] = u0v0u; raw_uv[uo + 1] = u0v0v;
+        raw_uv[uo + 2] = u1v1u; raw_uv[uo + 3] = u1v1v;
+        raw_uv[uo + 4] = u2v2u; raw_uv[uo + 5] = u2v2v;
+        raw_fn[no + 0] = FLOAT_TO_FP(fnv.x);
+        raw_fn[no + 1] = FLOAT_TO_FP(fnv.y);
+        raw_fn[no + 2] = FLOAT_TO_FP(fnv.z);
 
         if (flags & POLYHEDRON_SMOOTH)
         {
-          m->vertex_normals[vno + 0] = FLOAT_TO_FP(vn0.x);
-          m->vertex_normals[vno + 1] = FLOAT_TO_FP(vn0.y);
-          m->vertex_normals[vno + 2] = FLOAT_TO_FP(vn0.z);
-          m->vertex_normals[vno + 3] = FLOAT_TO_FP(vn1.x);
-          m->vertex_normals[vno + 4] = FLOAT_TO_FP(vn1.y);
-          m->vertex_normals[vno + 5] = FLOAT_TO_FP(vn1.z);
-          m->vertex_normals[vno + 6] = FLOAT_TO_FP(vn2.x);
-          m->vertex_normals[vno + 7] = FLOAT_TO_FP(vn2.y);
-          m->vertex_normals[vno + 8] = FLOAT_TO_FP(vn2.z);
+          raw_vn[vno + 0] = FLOAT_TO_FP(vn0.x);
+          raw_vn[vno + 1] = FLOAT_TO_FP(vn0.y);
+          raw_vn[vno + 2] = FLOAT_TO_FP(vn0.z);
+          raw_vn[vno + 3] = FLOAT_TO_FP(vn1.x);
+          raw_vn[vno + 4] = FLOAT_TO_FP(vn1.y);
+          raw_vn[vno + 5] = FLOAT_TO_FP(vn1.z);
+          raw_vn[vno + 6] = FLOAT_TO_FP(vn2.x);
+          raw_vn[vno + 7] = FLOAT_TO_FP(vn2.y);
+          raw_vn[vno + 8] = FLOAT_TO_FP(vn2.z);
         }
         else
         {
           int nx = FLOAT_TO_FP(fnv.x), ny = FLOAT_TO_FP(fnv.y), nz = FLOAT_TO_FP(fnv.z);
           for (j = 0; j < 3; j++)
           {
-            m->vertex_normals[vno + j * 3 + 0] = nx;
-            m->vertex_normals[vno + j * 3 + 1] = ny;
-            m->vertex_normals[vno + j * 3 + 2] = nz;
+            raw_vn[vno + j * 3 + 0] = nx;
+            raw_vn[vno + j * 3 + 1] = ny;
+            raw_vn[vno + j * 3 + 2] = nz;
           }
         }
         ti++;
@@ -330,12 +312,23 @@ static Model *build_tube(const int *path, int num_points,
     }
   }
 
-fail:
+  /* Exact-match dedup: a ring vertex shared by adjacent triangles
+   * collapses into one entry whenever (pos, uv, normal) match. Smooth
+   * mode shares normals across adjacent triangles, so it dedupes
+   * heavily; flat mode keeps per-triangle normals so it dedupes only
+   * within a single quad. */
+  m = model_build_indexed(num_tri, raw_pos, raw_uv, raw_vn, raw_fn, 0);
+
+done:
   free(rights);
   free(ups);
   free(tangents);
   free(ring_pos);
   free(ring_norm);
+  free(raw_pos);
+  free(raw_uv);
+  free(raw_fn);
+  free(raw_vn);
   return m;
 }
 
