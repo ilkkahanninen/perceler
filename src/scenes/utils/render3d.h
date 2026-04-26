@@ -113,4 +113,22 @@ void fill_triangle_textured_gouraud(unsigned char *buf, unsigned short *zb,
                                     const Texture *tex,
                                     const Colormap *cm);
 
+/*
+ * Sphere-map a Q8.8 unit normal vector (camera-space) to Q8.8 texture
+ * coordinates where 256 == one full wrap:
+ *
+ *   u = (nx + 1) / 2
+ *   v = (1 - ny) / 2     (ny inverted so positive Y maps to the top
+ *                         of the texture)
+ *
+ * `nz` is ignored. The caller feeds the resulting (u, v) into any of
+ * the textured rasterizers; the texture itself is treated as a
+ * sphere-projected reflection map (top-row = looking up, etc.).
+ */
+static inline void sphere_map_uv(int nx, int ny, int *out_u, int *out_v)
+{
+  *out_u = (nx >> 1) + 128;
+  *out_v = 128 - (ny >> 1);
+}
+
 #endif

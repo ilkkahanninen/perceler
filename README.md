@@ -7,7 +7,7 @@ A demo engine for DOS running in VGA Mode 13h (320×200×256), with XM module pl
 - 60 fps timeline-driven scene runner
 - Sound Blaster 16 and Gravis Ultrasound runtime drivers
 - Bitmap loader (.png, .bmp)
-- 3D model loader (.obj, .3ds) with flat / Gouraud / textured rasterizers
+- 3D model loader (.obj, .3ds) with flat / Gouraud / textured rasterizers and sphere-map UV helper
 - Procedural Platonic solids with optional per-face extrusion
 - Bitmap font, palette utilities, parameter tweens, blur, dithering, drawing primitives
 - Music sync: discrete sample triggers and continuous FFT band-energy tracks
