@@ -93,7 +93,7 @@ Drop files in `assets/` (packed as-is) or `asset-sources/` (converted at build t
 
 | Source  | Output                                                           |
 | ------- | ---------------------------------------------------------------- |
-| `*.png` | 8-bit indexed BMP using `asset-sources/palette.bmp`              |
+| `*.png` | 8-bit indexed BMP; palette reused from existing output BMP, or quantised fresh. Override with `tools/png2bmp.py -p palette.bmp` or `-q` to force re-quantisation. |
 | `*.obj` | `.mdl` with per-vertex normals from `vn` or `s` smoothing groups |
 | `*.3ds` | One `.mdl` per mesh (run `tools/3ds2model.py` manually)          |
 

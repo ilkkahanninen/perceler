@@ -1,17 +1,21 @@
 #!/usr/bin/env python3
 """
-Convert a PNG image to a 256-color indexed BMP using a reference palette.
+Convert a PNG image to a 256-color indexed BMP.
 
-Reads the palette from an existing 8-bit indexed BMP file and maps each
-pixel in the source PNG to the closest palette entry.  Transparent pixels
-(alpha below the threshold) are mapped to index 0.
+Palette resolution, in priority order:
+    1. -q              always quantise a fresh palette from the input
+    2. -p FILE         use the palette from FILE
+    3. output exists   reuse the palette from the existing output BMP
+    4. neither         quantise a new 255-colour palette from the input
+                       (index 0 is reserved for transparent pixels)
 
 Usage:
     python3 tools/png2bmp.py input.png output.bmp [options]
 
 Options:
-    -p, --palette FILE    Reference palette BMP (default: palette.bmp
-                          next to this script, or build/palette.bmp)
+    -p, --palette FILE    Reference palette BMP (overrides auto-detect).
+    -q, --quantize        Force a fresh quantised palette even if the
+                          output file already exists.
     -t, --threshold INT   Alpha threshold 0-255 (default: 128).
                           Pixels with alpha < threshold become index 0.
 
@@ -197,6 +201,60 @@ def read_bmp_palette(path):
 
 
 # ======================================================================
+# Quantization (median cut)
+# ======================================================================
+
+def quantize(unique_colors, target):
+    """Heckbert median cut. `unique_colors` is an iterable of (r,g,b)
+    tuples; returns (representatives, color_to_idx) where:
+
+      representatives  = list of up to `target` (r,g,b) tuples (centroids
+                         of the resulting boxes)
+      color_to_idx     = dict mapping every input colour to its 0-based
+                         index into `representatives`
+
+    Caller is expected to shift the indices if reserving index 0 for
+    transparency."""
+    boxes = [list(unique_colors)]
+    if not boxes[0]:
+        return [], {}
+
+    while len(boxes) < target:
+        # Find the box with the largest single-channel range; split it.
+        best_i, best_ch, best_range = -1, 0, -1
+        for i, box in enumerate(boxes):
+            if len(box) <= 1:
+                continue
+            for ch in range(3):
+                lo = min(c[ch] for c in box)
+                hi = max(c[ch] for c in box)
+                r = hi - lo
+                if r > best_range:
+                    best_range = r
+                    best_i = i
+                    best_ch = ch
+        if best_i < 0:
+            break  # all boxes are singletons
+        box = boxes[best_i]
+        box.sort(key=lambda c: c[best_ch])
+        mid = len(box) // 2
+        boxes[best_i] = box[:mid]
+        boxes.append(box[mid:])
+
+    reps = []
+    color_to_idx = {}
+    for idx, box in enumerate(boxes):
+        n = len(box)
+        cr = sum(c[0] for c in box) // n
+        cg = sum(c[1] for c in box) // n
+        cb = sum(c[2] for c in box) // n
+        reps.append((cr, cg, cb))
+        for c in box:
+            color_to_idx[c] = idx
+    return reps, color_to_idx
+
+
+# ======================================================================
 # Color matching
 # ======================================================================
 
@@ -267,57 +325,75 @@ def write_indexed_bmp(path, width, height, palette, indices):
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Convert a PNG to 256-color indexed BMP using a reference palette.')
+        description='Convert a PNG to 256-color indexed BMP. '
+                    'Palette: -q > -p > existing output file > newly quantised.')
     parser.add_argument('input', help='Input PNG file')
     parser.add_argument('output', help='Output BMP file')
     parser.add_argument('-p', '--palette', default=None,
-                        help='Reference palette BMP (default: palette.bmp or build/palette.bmp)')
+                        help='Reference palette BMP (overrides auto-detect).')
+    parser.add_argument('-q', '--quantize', action='store_true',
+                        help='Force fresh quantisation even if output exists.')
     parser.add_argument('-t', '--threshold', type=int, default=128,
                         help='Alpha threshold 0-255 (default: 128). '
                              'Pixels with alpha < threshold become index 0.')
     args = parser.parse_args()
 
-    # Find palette file
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_dir = os.path.dirname(script_dir)
-    if args.palette:
-        pal_path = args.palette
+    if args.quantize:
+        pal_source = None
+    elif args.palette:
+        pal_source = args.palette
     elif os.path.exists(args.output):
-        pal_path = args.output
-    elif os.path.exists(os.path.join(project_dir, 'palette.bmp')):
-        pal_path = os.path.join(project_dir, 'palette.bmp')
-    elif os.path.exists(os.path.join(project_dir, 'build', 'palette.bmp')):
-        pal_path = os.path.join(project_dir, 'build', 'palette.bmp')
+        pal_source = args.output
     else:
-        print('Error: no palette BMP found. Use -p to specify one, or run make_palette.py first.',
-              file=sys.stderr)
-        sys.exit(1)
+        pal_source = None  # quantise from input
 
-    palette = read_bmp_palette(pal_path)
     width, height, pixels = read_png_rgba(args.input)
 
-    # Build color cache to speed up repeated lookups
-    cache = {}
     indices = []
     transparent = 0
     mapped = 0
 
-    for r, g, b, a in pixels:
-        if a < args.threshold:
-            indices.append(0)
-            transparent += 1
-        else:
-            key = (r, g, b)
-            if key not in cache:
-                cache[key] = find_closest(r, g, b, palette, start=1)
-            indices.append(cache[key])
-            mapped += 1
+    if pal_source is not None:
+        palette = read_bmp_palette(pal_source)
+        cache = {}
+        for r, g, b, a in pixels:
+            if a < args.threshold:
+                indices.append(0)
+                transparent += 1
+            else:
+                key = (r, g, b)
+                if key not in cache:
+                    cache[key] = find_closest(r, g, b, palette, start=1)
+                indices.append(cache[key])
+                mapped += 1
+        unique_count = len(cache)
+        pal_note = f'palette={pal_source}'
+    else:
+        # Quantise: collect non-transparent unique colours, then
+        # median-cut to 255 (index 0 reserved for transparent).
+        unique = set()
+        for r, g, b, a in pixels:
+            if a >= args.threshold:
+                unique.add((r, g, b))
+        reps, color_to_idx = quantize(unique, 255)
+        palette = [(0, 0, 0)] + reps
+        while len(palette) < 256:
+            palette.append((0, 0, 0))
+        for r, g, b, a in pixels:
+            if a < args.threshold:
+                indices.append(0)
+                transparent += 1
+            else:
+                indices.append(1 + color_to_idx[(r, g, b)])
+                mapped += 1
+        unique_count = len(unique)
+        pal_note = f'palette=quantised({len(reps)} colours)'
 
     write_indexed_bmp(args.output, width, height, palette, indices)
 
     print(f'{args.input} -> {args.output}  ({width}x{height}, '
           f'{mapped} pixels mapped, {transparent} transparent, '
-          f'{len(cache)} unique colors)')
+          f'{unique_count} unique colours, {pal_note})')
 
 
 if __name__ == '__main__':
