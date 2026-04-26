@@ -5,6 +5,7 @@
 #include "scenes/model_wireframe.h"
 #include "scenes/plasma.h"
 #include "scenes/polyhedra.h"
+#include "scenes/rope_knot.h"
 #include "scenes/shaded_cube.h"
 #include "scenes/spheremap_orb.h"
 #include "scenes/textured_cube.h"
@@ -22,6 +23,7 @@ TimelineEntry demo_timeline[] = {
     {&textured_cube_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&shaded_cube_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&spheremap_orb_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    {&rope_knot_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&polyhedra_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&plasma_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&tunnel_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
