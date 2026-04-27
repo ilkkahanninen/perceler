@@ -1,5 +1,6 @@
 #include "demo.h"
 
+#include "scenes/particles.h"
 #include "scenes/model_flatshade.h"
 #include "scenes/model_gouraud.h"
 #include "scenes/model_wireframe.h"
@@ -17,16 +18,17 @@
 #define PATTERN_LEN 128
 
 TimelineEntry demo_timeline[] = {
-    {&model_wireframe_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
-    {&model_flatshade_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
-    {&model_gouraud_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
-    {&textured_cube_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
-    {&shaded_cube_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
-    {&spheremap_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
-    {&rope_knot_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
-    {&polyhedra_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
-    {&plasma_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
-    {&tunnel_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    /* 00 */ {&model_wireframe_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    /* 01 */ {&model_flatshade_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    /* 02 */ {&model_gouraud_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    /* 03 */ {&textured_cube_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    /* 04 */ {&shaded_cube_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    /* 05 */ {&spheremap_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    /* 06 */ {&rope_knot_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    /* 07 */ {&polyhedra_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    /* 08 */ {&plasma_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    /* 09 */ {&tunnel_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    /* 10 */ {&particles_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {0, 0, 0}};
 
 const Asset *demo_song(void)
