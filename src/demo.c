@@ -7,7 +7,7 @@
 #include "scenes/polyhedra.h"
 #include "scenes/rope_knot.h"
 #include "scenes/shaded_cube.h"
-#include "scenes/spheremap_orb.h"
+#include "scenes/spheremap.h"
 #include "scenes/textured_cube.h"
 #include "scenes/tunnel.h"
 #include "utils/timing.h"
@@ -22,7 +22,7 @@ TimelineEntry demo_timeline[] = {
     {&model_gouraud_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&textured_cube_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&shaded_cube_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
-    {&spheremap_orb_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    {&spheremap_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&rope_knot_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&polyhedra_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {&plasma_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
