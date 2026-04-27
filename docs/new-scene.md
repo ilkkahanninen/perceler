@@ -208,6 +208,81 @@ static void setup(void)    { image = bitmap_load(ASSET_JML_BMP); }
 static void shutdown(void) { bitmap_free(image); image = NULL; }
 ```
 
+### Half-resolution rendering
+
+For scenes whose per-pixel work is expensive (raytracing, software
+shading, dense procedural fills), rendering into a 160×100 buffer and
+pixel-doubling to 320×200 keeps the same screen coverage with a
+quarter as many source pixels (160 × 100 = 16000 vs 320 × 200 =
+64000):
+
+```c
+static unsigned char small[VGA_HALF_SIZE];
+
+static void render(const RenderContext *ctx)
+{
+    /* expensive per-pixel work into the half-res buffer */
+    raytrace_into(small);
+
+    /* expand each source pixel into a 2x2 block in the backbuffer */
+    vga_blit_2x_to_buffer(small, ctx->backbuffer);
+
+    /* full-resolution overlays still draw normally */
+    font_draw(&font_default, ctx->backbuffer, 4, 4, 255, "scene.c");
+
+    vga_vsync();
+    vga_blit(ctx->backbuffer);
+}
+```
+
+`VGA_HALF_WIDTH` (160), `VGA_HALF_HEIGHT` (100), and `VGA_HALF_SIZE`
+(16000) come from [vga.h](../src/engine/vga.h) for declaring the
+source buffer. Each source pixel becomes a 2×2 block on screen, so the
+visible result has chunkier edges — that's the tradeoff.
+
+Pass `(unsigned char *)VGA_MEM` as the destination if you'd rather
+write the upscaled image straight to VGA memory; the backbuffer route
+is the more common choice because it leaves room for full-resolution
+overlays before the final blit.
+
+### Interleaved rendering
+
+For per-pixel work that's expensive but tolerates a bit of temporal
+softness — slow-moving smoke, generative ambient effects, anything
+that blurs into itself across frames — render only every other
+scanline each frame and use `vga_blit_rows` to push just those lines:
+
+```c
+static void render(const RenderContext *ctx)
+{
+    int parity = ctx->frame & 1;        /* alternate odd/even rows */
+    int y;
+
+    /* Touch only the parity-matching scanlines this frame. */
+    for (y = parity; y < VGA_HEIGHT; y += 2)
+        render_scanline(ctx->backbuffer + y * VGA_WIDTH, y, ctx->frame);
+
+    vga_vsync();
+
+    /* Push only the lines we touched. */
+    for (y = parity; y < VGA_HEIGHT; y += 2)
+        vga_blit_rows(ctx->backbuffer, y, 1);
+}
+```
+
+Per-pixel work drops to half (100 scanlines × 320 pixels = 32000
+source pixels per frame instead of 64000) and the blit moves 32000
+bytes to VGA memory instead of 64000 — the rows you didn't touch
+stay on screen from the previous frame's blit. Each line refreshes
+every other frame, so the trick works best for content that's
+already smooth across frames; fast motion picks up a comb-like
+temporal artifact for the same reason interlaced video does.
+
+`vga_blit_rows(buf, y_start, y_count)` accepts any contiguous row
+range and clamps out-of-range arguments. The same call covers
+half-screen and letterbox patterns, e.g.
+`vga_blit_rows(backbuffer, 50, 100)` pushes rows 50..149.
+
 ### Backbuffer-sized scratch buffers
 
 For perf-critical scenes that read the backbuffer alongside one or two

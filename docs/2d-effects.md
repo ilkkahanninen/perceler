@@ -291,6 +291,37 @@ for (y = ...) {
 Pair `dither_voidcluster8x8` with this kind of monotone sweep — its
 blue-noise pattern is the least visually distracting during the reveal.
 
+### Half-resolution heavy effect
+
+When per-pixel work is too expensive at 320×200, render into a
+160×100 buffer and pixel-double on output:
+
+```c
+raytrace_into(small);                              /* fills VGA_HALF_SIZE bytes */
+vga_blit_2x_to_buffer(small, ctx->backbuffer);     /* expand 2x into backbuffer */
+```
+
+See [new-scene.md](new-scene.md#half-resolution-rendering) for the
+full pattern.
+
+### Interleaved rendering
+
+For effects that change slowly across frames, an alternative to
+half-res is to write only every other scanline each frame and push
+just those rows with `vga_blit_rows`:
+
+```c
+int parity = ctx->frame & 1;
+int y;
+for (y = parity; y < VGA_HEIGHT; y += 2)
+    render_scanline(ctx->backbuffer + y * VGA_WIDTH, y);
+for (y = parity; y < VGA_HEIGHT; y += 2)
+    vga_blit_rows(ctx->backbuffer, y, 1);
+```
+
+See [new-scene.md](new-scene.md#interleaved-rendering) for the
+tradeoffs.
+
 ---
 
 ## Common pitfalls

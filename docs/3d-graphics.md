@@ -280,6 +280,13 @@ If you're CPU-bound:
 - Use `MODEL_FLAT` rather than `MODEL_GOURAUD` when the lighting doesn't
   need to change across a triangle.
 - Don't transform vertex normals if you only need flat shading.
+- Render at half resolution (160×100) and pixel-double via
+  `vga_blit_2x_to_buffer`. Quarters the per-pixel work at the cost of
+  chunkier edges. See [new-scene.md](new-scene.md#half-resolution-rendering).
+- Render only every other scanline per frame (interleaving) and use
+  `vga_blit_rows` to push the touched lines. Halves the per-pixel
+  work; each line refreshes every other frame, so motion gets a comb
+  artifact. See [new-scene.md](new-scene.md#interleaved-rendering).
 
 Memory:
 
