@@ -9,6 +9,7 @@
 #include "scenes/rope_knot.h"
 #include "scenes/shaded_cube.h"
 #include "scenes/spheremap.h"
+#include "scenes/swarm.h"
 #include "scenes/textured_cube.h"
 #include "scenes/tunnel.h"
 #include "utils/timing.h"
@@ -29,6 +30,7 @@ TimelineEntry demo_timeline[] = {
     /* 08 */ {&plasma_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     /* 09 */ {&tunnel_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     /* 10 */ {&particles_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
+    /* 11 */ {&swarm_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 2)},
     {0, 0, 0}};
 
 const Asset *demo_song(void)
