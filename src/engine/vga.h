@@ -48,6 +48,16 @@ void vga_setpalette(unsigned char index, unsigned char r, unsigned char g,
  * screen instead. Both `src` and `dst` must be 4-byte aligned. */
 void vga_blit_2x_to_buffer(const unsigned char *src, unsigned char *dst);
 
+/* Same as vga_blit_2x_to_buffer, but reads from a source whose row
+ * stride is `src_stride` bytes — letting the half-res image live in
+ * the upper-left corner of a wider buffer. The 3D rasterizers hard-code
+ * VGA_WIDTH as their destination stride, so 3D scenes that want
+ * half-resolution rendering call this with src_stride = VGA_WIDTH
+ * after rendering into a VGA_WIDTH-stride work buffer with halved
+ * camera parameters. `src_stride` must be a multiple of 4. */
+void vga_blit_2x_strided(const unsigned char *src, int src_stride,
+                         unsigned char *dst);
+
 /* Copy a row range from a backbuffer to VGA memory. Pushes only the
  * lines a scene actually rewrote — useful for interleaved rendering
  * where each frame touches every other scanline.

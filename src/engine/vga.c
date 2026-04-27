@@ -51,16 +51,16 @@ void vga_setpalette(unsigned char index, unsigned char r, unsigned char g,
   outp(VGA_DAC_DATA, b);
 }
 
-void vga_blit_2x_to_buffer(const unsigned char *src, unsigned char *dst)
+void vga_blit_2x_strided(const unsigned char *src, int src_stride,
+                         unsigned char *dst)
 {
   int y;
   /* SWAR: read 4 source bytes per iteration, expand each byte to two
    * adjacent bytes, and write the resulting 8 bytes to two scanlines.
-   * VGA_HALF_WIDTH (160) is a multiple of 4 and rows are 4-byte aligned
-   * because both VGA_HALF_WIDTH and VGA_WIDTH (320) are. */
+   * VGA_HALF_WIDTH (160) is a multiple of 4; src_stride must be too. */
   for (y = 0; y < VGA_HALF_HEIGHT; y++)
   {
-    const unsigned int *s = (const unsigned int *)(src + y * VGA_HALF_WIDTH);
+    const unsigned int *s = (const unsigned int *)(src + y * src_stride);
     unsigned int *d0 = (unsigned int *)(dst + (y * 2) * VGA_WIDTH);
     unsigned int *d1 = (unsigned int *)(dst + (y * 2 + 1) * VGA_WIDTH);
     int n = VGA_HALF_WIDTH >> 2; /* 40 dwords per source row */
@@ -84,6 +84,11 @@ void vga_blit_2x_to_buffer(const unsigned char *src, unsigned char *dst)
       d1 += 2;
     }
   }
+}
+
+void vga_blit_2x_to_buffer(const unsigned char *src, unsigned char *dst)
+{
+  vga_blit_2x_strided(src, VGA_HALF_WIDTH, dst);
 }
 
 void vga_blit_rows(const unsigned char *buf, int y_start, int y_count)
