@@ -50,3 +50,65 @@ void vga_setpalette(unsigned char index, unsigned char r, unsigned char g,
   outp(VGA_DAC_DATA, g);
   outp(VGA_DAC_DATA, b);
 }
+
+void vga_blit_2x_to_buffer(const unsigned char *src, unsigned char *dst)
+{
+  int y;
+  /* SWAR: read 4 source bytes per iteration, expand each byte to two
+   * adjacent bytes, and write the resulting 8 bytes to two scanlines.
+   * VGA_HALF_WIDTH (160) is a multiple of 4 and rows are 4-byte aligned
+   * because both VGA_HALF_WIDTH and VGA_WIDTH (320) are. */
+  for (y = 0; y < VGA_HALF_HEIGHT; y++)
+  {
+    const unsigned int *s = (const unsigned int *)(src + y * VGA_HALF_WIDTH);
+    unsigned int *d0 = (unsigned int *)(dst + (y * 2) * VGA_WIDTH);
+    unsigned int *d1 = (unsigned int *)(dst + (y * 2 + 1) * VGA_WIDTH);
+    int n = VGA_HALF_WIDTH >> 2; /* 40 dwords per source row */
+    while (n--)
+    {
+      unsigned int p = *s++;
+      /* p packs source bytes 0xDDCCBBAA in little-endian order.
+       * `low` doubles bytes A,B  -> 0xBBBBAAAA.
+       * `high` doubles bytes C,D -> 0xDDDDCCCC. */
+      unsigned int low =
+          (p & 0x000000FFu) | ((p & 0x000000FFu) << 8) |
+          ((p & 0x0000FF00u) << 8) | ((p & 0x0000FF00u) << 16);
+      unsigned int high =
+          ((p & 0x00FF0000u) >> 16) | ((p & 0x00FF0000u) >> 8) |
+          ((p & 0xFF000000u) >> 8) | (p & 0xFF000000u);
+      d0[0] = low;
+      d0[1] = high;
+      d1[0] = low;
+      d1[1] = high;
+      d0 += 2;
+      d1 += 2;
+    }
+  }
+}
+
+void vga_blit_rows(const unsigned char *buf, int y_start, int y_count)
+{
+  const unsigned int *src;
+  unsigned int *dst;
+  int dwords;
+
+  /* Clamp to the visible window. */
+  if (y_start < 0)
+  {
+    y_count += y_start;
+    y_start = 0;
+  }
+  if (y_count <= 0 || y_start >= VGA_HEIGHT)
+    return;
+  if (y_start + y_count > VGA_HEIGHT)
+    y_count = VGA_HEIGHT - y_start;
+
+  /* SWAR: copy 4 bytes per iteration. y_start * VGA_WIDTH is always a
+   * multiple of 4 because VGA_WIDTH=320 is, so both pointers are
+   * 4-byte aligned given an aligned `buf`. */
+  src = (const unsigned int *)(buf + y_start * VGA_WIDTH);
+  dst = (unsigned int *)((unsigned char *)VGA_MEM + y_start * VGA_WIDTH);
+  dwords = (y_count * VGA_WIDTH) >> 2;
+  while (dwords--)
+    *dst++ = *src++;
+}
