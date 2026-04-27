@@ -15,7 +15,7 @@ A demo engine for DOS running in VGA Mode 13h (320×200×256), with XM module pl
 
 API reference for each subsystem lives in its `.h` file. Usage guides — how to choose between features and put them together — live in [docs/](docs/):
 
-- [Setting up a new scene](docs/new-scene.md) — lifecycle, render context, backbuffer, vsync/blit, wiring into the timeline.
+- [Setting up a new scene](docs/new-scene.md) — lifecycle, render context, backbuffer, vsync/blit, scene transitions and chaining, wiring into the timeline.
 - [Bitmaps](docs/bitmaps.md) — PNG → BMP pipeline, palette strategies, sharing palettes, runtime blitters.
 - [2D effects](docs/2d-effects.md) — primitives, text, blur, dither, palette crossfades and brightness colormaps.
 - [3D graphics](docs/3d-graphics.md) — picking a mesh source, rasterizer, shading model; the standard render loop; performance notes.

@@ -113,9 +113,14 @@ static void render(const RenderContext *ctx)
 
 What each step does:
 
-1. **Clear**: nothing carries over between frames automatically. Either
-   `memset(backbuffer, 0, VGA_SIZE)` or paint over the whole frame
-   (full-screen plasma, raycaster) — but skip the clear, never both.
+1. **Clear**: the engine never clears the backbuffer for you — last
+   frame's content is still there at the start of the next frame, and
+   *the previous scene's last frame is still there at the start of a
+   new scene*. Either `memset(backbuffer, 0, VGA_SIZE)` or paint over
+   the whole frame (full-screen plasma, raycaster) — but skip the
+   clear, never both. The cross-scene persistence is what makes
+   snapshot-based scene transitions possible without engine help; see
+   [Scene transitions](#scene-transitions) below.
 2. **Draw**: write palette indices. The actual on-screen colour is
    determined by the DAC palette, which `init()` (or `setup`) sets up.
    Index `0` is whatever the palette says — usually black, sometimes
@@ -189,6 +194,82 @@ scrubbing through the demo. It's optional; drop it for the final release.
 ```c
 font_draw(&font_default, backbuffer, 4, 4, 255, "starfield.c");
 ```
+
+### Scene transitions
+
+Last scene's frame is still in the backbuffer when yours wakes up.
+Snapshot it once, composite for the first N ms, done:
+
+```c
+#include "utils/dither.h"
+
+static unsigned char prev[VGA_SIZE];
+static int captured;
+
+static void init(const RenderContext *ctx) { (void)ctx; captured = 0; }
+
+static void render(const RenderContext *ctx)
+{
+    unsigned char *backbuffer = ctx->backbuffer;
+    if (!captured) { memcpy(prev, backbuffer, VGA_SIZE); captured = 1; }
+
+    /* ... draw your scene into backbuffer ... */
+
+    if (ctx->ms < 500) {
+        int t = (int)(ctx->ms * 256 / 500), x, y;
+        for (y = 0; y < VGA_HEIGHT; y++) {
+            const unsigned char *pat = dither_voidcluster8x8 + ((y & 7) << 3);
+            unsigned char *row = backbuffer + y * VGA_WIDTH;
+            for (x = 0; x < VGA_WIDTH; x++)
+                if ((int)pat[x & 7] >= t)
+                    row[x] = prev[y * VGA_WIDTH + x];
+        }
+    }
+    vga_vsync(); vga_blit(backbuffer);
+}
+```
+
+Variations: pixel-lerp fade, slide-over (offset blit), other matrices
+from [dither.h](../src/scenes/utils/dither.h). The engine stays out;
+each scene owns its own intro.
+
+The snapshot is palette indices, so they paint in the *new* DAC during
+the window — fine if both scenes share a palette, awkward otherwise.
+Two outs:
+
+- Capture the outgoing palette at the **top** of `init()` with
+  `palette_read()` (before applying your own), then `palette_lerp`
+  the DAC between captured and current during the window.
+- Skip pixel snapshots entirely and fade through black via
+  `palette_fade`.
+
+#### Chaining scenes
+
+For more elaborate composition — running another scene's render() as
+a sub-pass and compositing the result — push a render target before
+calling the sub-scene's `render()` and pop after:
+
+```c
+static unsigned char layer[VGA_SIZE];
+
+static void render(const RenderContext *ctx)
+{
+    /* Sub-scene draws into `layer` instead of VGA. vga_vsync() inside
+     * its render() becomes a no-op while the target is active. */
+    vga_push_render_target(layer);
+    sub_scene.render(ctx);
+    vga_pop_render_target();
+
+    /* Composite `layer` with our own content into ctx->backbuffer ... */
+
+    vga_vsync();
+    vga_blit(ctx->backbuffer);
+}
+```
+
+The target stack is 4 deep, so chains can nest a few levels (a wrapper
+calling a wrapper calling a base scene). Pushes beyond that are
+silently ignored.
 
 ### Asset loading
 
