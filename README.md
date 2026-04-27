@@ -13,7 +13,14 @@ A demo engine for DOS running in VGA Mode 13h (320×200×256), with XM module pl
 - Music sync: discrete sample triggers and continuous FFT band-energy tracks
 - Deterministic offline rendering to MP4
 
-API reference for each subsystem lives in its `.h` file.
+API reference for each subsystem lives in its `.h` file. Usage guides — how to choose between features and put them together — live in [docs/](docs/):
+
+- [Setting up a new scene](docs/new-scene.md) — lifecycle, render context, backbuffer, vsync/blit, wiring into the timeline.
+- [Bitmaps](docs/bitmaps.md) — PNG → BMP pipeline, palette strategies, sharing palettes, runtime blitters.
+- [2D effects](docs/2d-effects.md) — primitives, text, blur, dither, palette crossfades and brightness colormaps.
+- [3D graphics](docs/3d-graphics.md) — picking a mesh source, rasterizer, shading model; the standard render loop; performance notes.
+- [Fixed-point math & LUTs](docs/math-and-luts.md) — Q8.8 conventions, sin8 / sintab, randomness, cache-staggered allocations.
+- [Music sync](docs/music-sync.md) — driving effects from frame counters, tweens, sample triggers, and FFT tracks; scene-relative vs timeline-relative time.
 
 ## Quick start
 

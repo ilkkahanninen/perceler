@@ -1,0 +1,276 @@
+# Setting up a new scene
+
+A scene is a struct of four function pointers (the lifecycle) plus
+whatever static state the scene needs. The engine calls the lifecycle
+functions at well-defined moments and hands `render()` a `RenderContext`
+each frame; everything else is up to the scene.
+
+```
+boot ─► setup() ──► init() ──► render() ──► render() ──► … ─┐
+                      ▲                                     │
+                      └──────── (re-enter via timeline) ────┘
+
+quit ◄── shutdown() ◄── (last render of the run)
+```
+
+---
+
+## Step 1 — scaffold the files
+
+```sh
+./tools/new_scene.sh starfield
+```
+
+Generates `src/scenes/starfield.{c,h}` wired up with empty lifecycle
+stubs and a render that clears to black. The Makefile picks up new
+files automatically — no changes needed to the build.
+
+The script prints the line you need to add to the timeline; see
+[Step 5](#step-5--wire-it-into-the-timeline).
+
+---
+
+## Step 2 — understand the lifecycle
+
+Each scene exports a `const Scene` ([scene.h](../src/engine/scene.h#L30-L36)) holding
+four function pointers:
+
+| Function      | Called when                              | Do here                                   |
+| ------------- | ---------------------------------------- | ----------------------------------------- |
+| `setup()`     | Once at program start, before any render | Load assets, `malloc` buffers, build LUTs |
+| `init(ctx)`   | Every time the scene becomes active      | Apply palette, reset mutable state        |
+| `render(ctx)` | Once per frame while active (60 Hz)      | Draw to `ctx->backbuffer`, then blit      |
+| `shutdown()`  | Once at program end                      | `free` everything `setup()` allocated     |
+
+`init()` runs again when the user scrubs back via Left arrow, or when a
+looping timeline restarts. **Anything that should reset on re-entry
+goes in `init()`, not `setup()`** — typical examples: re-applying the
+texture palette, re-seeding RNG, zeroing accumulators. Buffer
+allocation belongs in `setup()` so it happens exactly once.
+
+`shutdown()` only runs on a clean exit. Don't rely on it for anything
+that must run during a scene transition.
+
+---
+
+## Step 3 — read the render context
+
+Every `render()` receives a `const RenderContext *ctx`:
+
+```c
+typedef struct {
+    unsigned char *backbuffer;
+    unsigned int   frame;          /* frames since this scene started */
+    unsigned long  ms;             /* ms     since this scene started */
+    unsigned int   timeline_frame; /* frames since the timeline started */
+    unsigned long  timeline_ms;    /* ms     since the timeline started */
+} RenderContext;
+```
+
+- **`backbuffer`** is a 320×200 byte array (one byte per pixel as a
+  palette index) that the engine hands you each frame. Most scenes
+  draw into it and blit it once at the end of the frame to avoid
+  tearing — but it's just a convenience, not a requirement. You can
+  ignore it and write directly to `VGA_MEM` if a scene calls for it.
+- **`frame`** is the canonical animation source. 8-bit truncation
+  (`(unsigned char)ctx->frame`) gives a 0..255 wrap suitable for `sin8`
+  / `cos8`.
+- **`ms`** is for tweens and other ms-paced timelines.
+- **`timeline_*`** is for music sync — see [music-sync.md](music-sync.md).
+
+---
+
+## Step 4 — draw, vsync, blit
+
+VGA Mode 13h: 320×200, 8-bit indexed colour, single 64 KB framebuffer
+at `0xA0000`. The engine doesn't double-buffer the hardware page; the
+common pattern is to draw into a backbuffer in main RAM and `memcpy`
+it into VGA memory once per frame, after a vsync. Direct writes to
+`VGA_MEM` work too — `vga_putpixel`, `vga_clear`, and your own loops
+are all valid — but every direct write races the beam and can tear if
+it lands during scanout.
+
+The render skeleton:
+
+```c
+static void render(const RenderContext *ctx)
+{
+    unsigned char *backbuffer = ctx->backbuffer;
+
+    /* (1) Clear or paint over previous frame. */
+    memset(backbuffer, 0, VGA_SIZE);
+
+    /* (2) Draw whatever the scene draws. Pixels are palette indices. */
+    backbuffer[100 * VGA_WIDTH + 160] = 255;       /* one pixel       */
+    font_draw(&font_default, backbuffer, 4, 4, 255,
+              "starfield.c");                       /* debug label    */
+
+    /* (3) Wait for the CRT retrace, then copy to VGA. */
+    vga_vsync();
+    vga_blit(backbuffer);
+}
+```
+
+What each step does:
+
+1. **Clear**: nothing carries over between frames automatically. Either
+   `memset(backbuffer, 0, VGA_SIZE)` or paint over the whole frame
+   (full-screen plasma, raycaster) — but skip the clear, never both.
+2. **Draw**: write palette indices. The actual on-screen colour is
+   determined by the DAC palette, which `init()` (or `setup`) sets up.
+   Index `0` is whatever the palette says — usually black, sometimes
+   not.
+3. **`vga_vsync()`**: blocks until the CRT retrace begins. The blit
+   that follows then runs entirely during the blanking interval, so
+   the user never sees a half-drawn frame (no tearing).
+4. **`vga_blit(backbuffer)`**: a `memcpy` of 64000 bytes from the
+   backbuffer into VGA memory.
+
+The vsync ↔ blit order matters. Calling `vga_blit` before
+`vga_vsync` lets the blit race the beam and you'll see horizontal
+tearing across the frame.
+
+`vga_clear(color)` is also available — it's a `memset` straight to VGA
+memory. Use it only if you want a flash effect that doesn't go through
+the backbuffer; for normal rendering, clear the backbuffer instead.
+
+---
+
+## Step 5 — wire it into the timeline
+
+In [src/demo.c](../src/demo.c) add the include and a `TimelineEntry`:
+
+```c
+#include "scenes/starfield.h"
+
+TimelineEntry demo_timeline[] = {
+    /* …existing entries… */
+    {&starfield_scene, XM_MS(BPM, SPEED, PATTERN_LEN * 4)},
+    {0, 0, 0}};
+```
+
+`XM_MS` derives the duration from tracker rows so the scene boundary
+lands on a musical beat — see [music-sync.md](music-sync.md#step-4--derive-scene-durations-from-tracker-timing).
+A duration of `0` runs the scene until the user hits ESC (used for
+stand-alone demos, never inside a real timeline).
+
+---
+
+## Common things you'll want
+
+### Palette
+
+The DAC has 256 RGB triplets, each channel 0..63. Set entries
+individually via `vga_setpalette(idx, r, g, b)`, or upload a whole
+`Palette` ([palette.h](../src/scenes/utils/palette.h)) at once with
+`palette_apply(&pal)`.
+
+If your scene uses an asset with its own palette (a textured cube, a
+loaded BMP), apply it in `init()`:
+
+```c
+static void init(const RenderContext *ctx)
+{
+    (void)ctx;
+    palette_apply(&texture->palette);
+}
+```
+
+Doing it in `setup()` works once, but the next scene's `init` will
+overwrite the DAC, and when this scene comes back the colours will be
+wrong.
+
+### Debug label
+
+The example scenes draw their source file name in the top-left corner —
+a convention that makes it easy to identify what you're looking at while
+scrubbing through the demo. It's optional; drop it for the final release.
+
+```c
+font_draw(&font_default, backbuffer, 4, 4, 255, "starfield.c");
+```
+
+### Asset loading
+
+Drop files in [`asset-sources/`](../asset-sources/) (PNG, OBJ — converted at
+build time) or [`assets/`](../assets/) (BMP, MDL, FFT, FNT, XM — packed as-is).
+The packer regenerates `src/assets.h` with `ASSET_*` constants. Loaders
+live in [bitmap.h](../src/scenes/utils/bitmap.h),
+[model.h](../src/scenes/utils/model.h), [font.h](../src/scenes/utils/font.h),
+[fft.h](../src/scenes/utils/fft.h).
+
+Load in `setup()`, free in `shutdown()`:
+
+```c
+static Bitmap *image;
+
+static void setup(void)    { image = bitmap_load(ASSET_JML_BMP); }
+static void shutdown(void) { bitmap_free(image); image = NULL; }
+```
+
+### Backbuffer-sized scratch buffers
+
+For perf-critical scenes that read the backbuffer alongside one or two
+LUTs in lockstep, allocate the LUTs at staggered cache offsets so they
+land in different L1 sets:
+
+```c
+my_lut    = mem_alloc_offset(VGA_SIZE, MEM_OFFSET_SCENE_0);
+my_other  = mem_alloc_offset(VGA_SIZE, MEM_OFFSET_SCENE_1);
+/* ... */
+mem_free_aligned(my_lut);
+mem_free_aligned(my_other);
+```
+
+See [mem.h](../src/utils/mem.h) for slot constants and [plasma.c](../src/scenes/plasma.c) for
+a worked example. For most scenes, plain `malloc` is fine.
+
+### Running just your scene
+
+```sh
+./run.sh 5    # runs only scene index 5 (0-based) from demo_timeline
+```
+
+Useful while iterating — boots straight into the scene under test
+instead of waiting through the prefix.
+
+---
+
+## Common pitfalls
+
+- **Drawing without clearing.** Garbage from the previous frame's
+  backbuffer (or even from another scene that ran in the same
+  backbuffer slot) bleeds through. Either `memset` to background or
+  paint over the whole frame.
+- **`vga_blit` without `vga_vsync`.** Visible tearing. The pair must
+  be called every frame, in order.
+- **Mixing backbuffer draws with direct `VGA_MEM` writes mid-frame.**
+  Each is fine on its own; combining them — drawing some pixels via
+  the backbuffer and others straight to VGA in the same frame —
+  usually means the direct writes show up one frame ahead of the
+  blit, so they flicker. Pick one strategy per frame.
+- **Allocating in `init()` instead of `setup()`.** `init()` runs every
+  scene re-entry — you'll leak a buffer per cycle. Allocate once in
+  `setup()`.
+- **Forgetting `palette_apply` in `init()`.** Looks correct on the first
+  pass, then the colours are wrong after a scene transition. The DAC is
+  shared global state.
+- **Per-frame `malloc` in `render()`.** Spikes garbage-collection-style
+  costs and fragments the heap. All buffers should come from `setup()`.
+- **Reading `ctx->frame` outside `render()`.** It's only valid during
+  the call. Don't stash the pointer — copy what you need.
+- **Writing past `VGA_SIZE`.** No bounds checking on the backbuffer
+  pointer. A buggy inner loop can clobber heap or stack and will look
+  random. The font and rasterizers clip to 320×200; raw `*dst++` loops
+  do not.
+
+---
+
+## Reference scenes
+
+| Scene                                            | Demonstrates                                                             |
+| ------------------------------------------------ | ------------------------------------------------------------------------ |
+| [plasma.c](../src/scenes/plasma.c)               | Full-screen procedural fill, cache-staggered LUTs, custom palette, tween |
+| [tunnel.c](../src/scenes/tunnel.c)               | LUT-driven texture lookup, palette crossfade + FFT-driven flash          |
+| [textured_cube.c](../src/scenes/textured_cube.c) | Smallest non-trivial 3D scene; minimal lifecycle                         |
+| Any 3D scene                                     | Standard 3D pipeline (see [3d-graphics.md](3d-graphics.md))              |
