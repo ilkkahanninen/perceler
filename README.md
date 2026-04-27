@@ -19,6 +19,7 @@ API reference for each subsystem lives in its `.h` file. Usage guides — how to
 - [Bitmaps](docs/bitmaps.md) — PNG → BMP pipeline, palette strategies, sharing palettes, runtime blitters.
 - [2D effects](docs/2d-effects.md) — primitives, text, blur, dither, palette crossfades and brightness colormaps.
 - [3D graphics](docs/3d-graphics.md) — picking a mesh source, rasterizer, shading model; the standard render loop; performance notes.
+- [Particles](docs/particles.md) — SoA pool, gravity/drag, attractors, point-cone emitter, colour ramps, music-driven bursts.
 - [Fixed-point math & LUTs](docs/math-and-luts.md) — Q8.8 conventions, sin8 / sintab, randomness, cache-staggered allocations.
 - [Music sync](docs/music-sync.md) — driving effects from frame counters, tweens, sample triggers, and FFT tracks; scene-relative vs timeline-relative time.
 

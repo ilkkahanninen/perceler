@@ -335,3 +335,8 @@ Memory:
 | [shaded_cube.c](../src/scenes/shaded_cube.c)           | Textured + Gouraud via colormap              |
 | [spheremap.c](../src/scenes/spheremap.c)               | Sphere-mapped teapot rendered at half resolution |
 | [rope_knot.c](../src/scenes/rope_knot.c)               | Procedural rope along a knotted path         |
+
+For point-cloud and effect-driven 3D content (sparks, embers, magic
+dust) the particle system shares this pipeline's `Camera3D` and
+`(angle_y, angle_x)` rotation convention — see
+[particles.md](particles.md).

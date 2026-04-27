@@ -168,6 +168,45 @@ frame. Always free with `fft_free` in `shutdown()`.
 Reference: [tunnel.c](../src/scenes/tunnel.c) flashes its palette toward white using
 the snare-band energy.
 
+#### From band energy to discrete events: `OnsetDetector`
+
+Continuous energy is great for things that should *modulate* with the
+music (palette fades, screen shake, scroll speed). For things that
+should fire *once per audible hit* (a particle burst, a flash, a
+state change), drive an `OnsetDetector` from the same FFT track:
+
+```c
+static FFTTrack *snare;
+static OnsetDetector snare_onset;
+
+/* setup() */
+snare = fft_load(ASSET_SNARE_FFT);
+
+/* init() */
+onset_init(&snare_onset, 100 /* floor */, 8 /* cooldown frames */);
+
+/* render() */
+int e = fft_at(snare, ctx->timeline_frame);
+if (onset_step(&snare_onset, e))
+    /* fire — burst particles, set a flash flag, etc. */
+```
+
+`onset_step` returns 1 once per peak in the energy stream that clears
+`floor`, suppressing further triggers for `cooldown_frames`. Tune the
+two values to the band:
+
+- **Floor too low** → noise floor and decay-tail bumps trigger
+  spurious fires. Raise it.
+- **Cooldown too short** → secondary bumps within the same hit's
+  envelope re-fire. Raise it.
+- **Cooldown too long** → fast back-to-back hits (16ths, drum rolls)
+  get swallowed. Lower it.
+
+Reference: [particles.c](../src/scenes/particles.c) uses `OnsetDetector` on
+the snare-band track to fire a particle burst per hit. One-frame
+latency: the trigger fires on the falling edge after a peak, so it's
+delayed by one frame from the peak itself.
+
 ---
 
 ## Step 4 — derive scene durations from tracker timing
@@ -234,4 +273,9 @@ each section's local BPM and split the timeline at tempo changes.
 | -------------------------------------------------- | -------------------------------------------------- |
 | [plasma.c](../src/scenes/plasma.c)                 | `frame` for animation, `Tween` for title slide     |
 | [tunnel.c](../src/scenes/tunnel.c)                 | `frame` for animation, FFT track for palette flash |
+| [particles.c](../src/scenes/particles.c)                 | FFT energy as a particle-burst trigger             |
 | Any 3D scene                                       | `frame` truncated to 8 bits as a rotation angle    |
+
+Particle bursts are a natural pairing for sample triggers and FFT
+energy — see [particles.md](particles.md) for the spawn-from-trigger
+patterns.
