@@ -62,4 +62,61 @@ static inline int tween_at_int(const Tween *tween, unsigned long time_ms)
   return tween_at(tween, time_ms) >> 8;
 }
 
+/*
+ * Catmull-Rom spline through a list of control points.
+ *
+ * Where Tween interpolates each segment in isolation with a chosen
+ * curve, Spline reads the two neighbouring keys as well so the
+ * curve is C1-continuous (no slope discontinuities) across all
+ * keys. It passes through every key exactly. Endpoint tangents are
+ * clamped so the curve flat-lines just past the first and last
+ * key, leaving the value stable outside the authored range.
+ *
+ * Values are Q8.8 fixed-point; sampling cost is constant-time per
+ * segment plus a linear scan to find the segment.
+ *
+ * Use Spline when you want smooth motion across more than two keys
+ * — camera dollies, parameter sweeps, cinematic moves. For
+ * per-segment easing (linear, smooth, ease-in/out, step) use Tween.
+ *
+ * Example: a cinematic camera-z sweep across six seconds.
+ *
+ *   static const SplineKey cam_z_keys[] = {
+ *     {    0, INT_TO_FP(8) },   // start far back
+ *     { 2000, INT_TO_FP(4) },   // dolly in
+ *     { 4000, INT_TO_FP(3) },   // closest pass
+ *     { 6000, INT_TO_FP(8) },   // pull back out
+ *   };
+ *   static const Spline cam_z = SPLINE(cam_z_keys);
+ *
+ *   // render():
+ *   int z = spline_at(&cam_z, ctx->ms);
+ */
+
+typedef struct
+{
+  unsigned long time_ms;
+  int value; /* 8.8 fixed-point */
+} SplineKey;
+
+typedef struct
+{
+  const SplineKey *keys;
+  int num_keys;
+} Spline;
+
+#define SPLINE(keys_array) \
+  { (keys_array), (int)(sizeof(keys_array) / sizeof((keys_array)[0])) }
+
+/* Sample the spline at the given millisecond timestamp. Returns Q8.8.
+ * For a spline of fewer than two keys, returns the single value (or
+ * 0 for an empty spline). */
+int spline_at(const Spline *spline, unsigned long time_ms);
+
+/* Same as spline_at() but drops the 8-bit fractional part. */
+static inline int spline_at_int(const Spline *spline, unsigned long time_ms)
+{
+  return spline_at(spline, time_ms) >> 8;
+}
+
 #endif

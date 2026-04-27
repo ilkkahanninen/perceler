@@ -79,3 +79,66 @@ int tween_at(const Tween *tween, unsigned long time_ms)
   diff = (long long)(b->value - a->value) * t_q16;
   return a->value + (int)(diff >> T_Q);
 }
+
+int spline_at(const Spline *spline, unsigned long time_ms)
+{
+  const SplineKey *keys;
+  int n, i;
+  int p0, p1, p2, p3;
+  long long c1, c2, c3;
+  long long t_q16, t2_q16, t3_q16;
+  long long sum;
+  unsigned long span;
+
+  if (!spline)
+    return 0;
+  keys = spline->keys;
+  n = spline->num_keys;
+  if (n <= 0)
+    return 0;
+  if (n == 1)
+    return keys[0].value;
+  if (time_ms <= keys[0].time_ms)
+    return keys[0].value;
+  if (time_ms >= keys[n - 1].time_ms)
+    return keys[n - 1].value;
+
+  /* Linear scan for the segment containing time_ms — same shape as
+   * tween_at(). */
+  for (i = 0; i + 1 < n; i++)
+    if (time_ms < keys[i + 1].time_ms)
+      break;
+
+  /* Catmull-Rom needs the two keys flanking the segment. Clamp at the
+   * boundaries so the first and last segments use a doubled endpoint
+   * for their missing neighbour — the curve flat-tangents past the
+   * authored range, matching the clamp behaviour of the early-out
+   * checks above. */
+  p0 = (i > 0) ? keys[i - 1].value : keys[i].value;
+  p1 = keys[i].value;
+  p2 = keys[i + 1].value;
+  p3 = (i + 2 < n) ? keys[i + 2].value : keys[i + 1].value;
+
+  span = keys[i + 1].time_ms - keys[i].time_ms;
+  if (span == 0)
+    return p1;
+
+  /* t in Q16 within this segment, then t² and t³ in the same scale. */
+  t_q16 = ((unsigned long long)(time_ms - keys[i].time_ms) * T_ONE) / span;
+  t2_q16 = (t_q16 * t_q16) >> T_Q;
+  t3_q16 = (t2_q16 * t_q16) >> T_Q;
+
+  /* Catmull-Rom: p(t) = 0.5 * (2p1 + (-p0+p2)t
+   *                                + (2p0-5p1+4p2-p3)t²
+   *                                + (-p0+3p1-3p2+p3)t³).
+   * Coefficients evaluated as long long to absorb the Q16 multiply. */
+  c1 = (long long)(-p0 + p2);
+  c2 = (long long)(2 * p0 - 5 * p1 + 4 * p2 - p3);
+  c3 = (long long)(-p0 + 3 * p1 - 3 * p2 + p3);
+
+  sum = (long long)(2 * p1)
+      + ((c1 * t_q16) >> T_Q)
+      + ((c2 * t2_q16) >> T_Q)
+      + ((c3 * t3_q16) >> T_Q);
+  return (int)(sum >> 1);
+}
