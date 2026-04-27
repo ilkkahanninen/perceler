@@ -3,7 +3,8 @@
 #include <conio.h>
 
 #define VGA_DAC_WRITE 0x3C8
-#define VGA_DAC_DATA 0x3C9
+#define VGA_DAC_READ  0x3C7
+#define VGA_DAC_DATA  0x3C9
 
 void palette_apply(const Palette *pal)
 {
@@ -13,6 +14,16 @@ void palette_apply(const Palette *pal)
   outp(VGA_DAC_WRITE, 0);
   for (i = 0; i < 256 * 3; i++)
     outp(VGA_DAC_DATA, p[i]);
+}
+
+void palette_read(Palette *dst)
+{
+  unsigned char *p = &dst->entries[0][0];
+  int i;
+
+  outp(VGA_DAC_READ, 0);
+  for (i = 0; i < 256 * 3; i++)
+    p[i] = (unsigned char)inp(VGA_DAC_DATA);
 }
 
 void palette_calc_levels(PaletteLevels *dst, const Palette *src)

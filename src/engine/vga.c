@@ -29,8 +29,37 @@ void vga_exit(void)
   int386(0x10, &regs, &regs);
 }
 
+/* Render-target stack — see vga.h. Capacity is fixed at 4. */
+#define VGA_TARGET_STACK_DEPTH 4
+static unsigned char *target_stack[VGA_TARGET_STACK_DEPTH];
+static int target_stack_top;
+
+void vga_push_render_target(unsigned char *target)
+{
+  if (target_stack_top < VGA_TARGET_STACK_DEPTH)
+    target_stack[target_stack_top++] = target;
+}
+
+void vga_pop_render_target(void)
+{
+  if (target_stack_top > 0)
+    target_stack_top--;
+}
+
+void vga_blit(const unsigned char *buf)
+{
+  void *dst = (target_stack_top > 0)
+                  ? (void *)target_stack[target_stack_top - 1]
+                  : (void *)VGA_MEM;
+  memcpy(dst, buf, VGA_SIZE);
+}
+
 void vga_vsync(void)
 {
+  /* Skip the wait while a custom render target is active — there's no
+   * beam to race when blitting offscreen. */
+  if (target_stack_top > 0)
+    return;
   while (inp(VGA_INPUT_STATUS) & 0x08)
     ;
   while (!(inp(VGA_INPUT_STATUS) & 0x08))

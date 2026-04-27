@@ -19,6 +19,12 @@ typedef struct
 /* Upload all 256 entries of `pal` to the VGA DAC. */
 void palette_apply(const Palette *pal);
 
+/* Read the live DAC contents back into `dst`. Handy for capturing the
+ * outgoing palette at the top of init() — before applying your own —
+ * so a scene can lerp between previous and current palettes during a
+ * transition window. */
+void palette_read(Palette *dst);
+
 /*
  * Pre-calculate 64 lightness levels from `src`.
  * Levels 0-32 interpolate from black to the original palette.

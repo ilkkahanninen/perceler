@@ -36,8 +36,22 @@ void vga_setpalette(unsigned char index, unsigned char r, unsigned char g,
 /* Fill VGA memory with `color`. */
 #define vga_clear(color) memset((void *)VGA_MEM, (color), VGA_SIZE)
 
-/* Copy a 320×200 backbuffer to VGA memory. */
-#define vga_blit(buf) memcpy((void *)VGA_MEM, (buf), VGA_SIZE)
+/* Copy a 320×200 backbuffer to VGA memory — or to the active render
+ * target if vga_push_render_target() has been called. */
+void vga_blit(const unsigned char *buf);
+
+/* Redirect subsequent vga_blit() calls to write into `target` instead
+ * of VGA memory, and turn vga_vsync() into a no-op (the caller is
+ * compositing offscreen, not racing the beam). Useful for chaining
+ * scenes — a wrapper scene can render a sub-scene into a temp buffer
+ * by pushing its address, calling the sub-scene's render(), then
+ * popping. The stack is 4 deep; pushes beyond that are ignored. */
+void vga_push_render_target(unsigned char *target);
+
+/* Pop the most recent render target. After the last pop, vga_blit()
+ * resumes writing to VGA_MEM and vga_vsync() resumes waiting for the
+ * retrace. */
+void vga_pop_render_target(void);
 
 /* Pixel-doubled blit: copy a VGA_HALF_WIDTH × VGA_HALF_HEIGHT source
  * buffer into a 320×200 destination, expanding each source pixel into
