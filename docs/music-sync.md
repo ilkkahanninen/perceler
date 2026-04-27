@@ -97,6 +97,34 @@ Times are scene-relative ms by convention (write keys against
 *next* key. Before the first key the value clamps; after the last it
 clamps. Use `tween_at()` for Q8.8 output, `tween_at_int()` for integer.
 
+#### Smoother motion across many keys: `Spline`
+
+`Tween` interpolates each segment in isolation, so the curve is C1 only
+when both adjacent keys agree on the curve type. For motion that
+should stay smooth across more than two keys — camera dollies, multi-
+stop parameter sweeps, anything cinematic — use `Spline` from the same
+header. It runs Catmull-Rom through the control points: passes through
+every key, C1-continuous everywhere, no per-segment curve enum needed.
+
+```c
+static const SplineKey cam_z_keys[] = {
+    {    0, INT_TO_FP(8) },   /* start far back */
+    { 2000, INT_TO_FP(4) },   /* dolly in       */
+    { 4000, INT_TO_FP(3) },   /* closest pass   */
+    { 6000, INT_TO_FP(8) },   /* pull back out  */
+};
+static const Spline cam_z = SPLINE(cam_z_keys);
+
+/* render(): */
+int z = spline_at(&cam_z, ctx->ms);
+```
+
+Endpoint tangents are clamped (the curve flat-lines just past the
+first and last key) so values stay stable outside the authored
+range. The values are Q8.8 throughout — pair with
+[3d-graphics.md](3d-graphics.md#camera-tuning) when driving
+`Camera3D` parameters.
+
 ### Sample triggers
 
 For discrete note events from the XM song — kick hits, lead-in stabs,

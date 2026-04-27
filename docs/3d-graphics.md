@@ -2,7 +2,7 @@
 
 A walkthrough of the 3D pipeline aimed at someone writing a new scene. API
 reference for each function lives in the corresponding header — this guide
-is about *which* function to pick and *why*.
+is about _which_ function to pick and _why_.
 
 The pipeline:
 
@@ -24,24 +24,24 @@ unique vertex, then the triangle loop just looks up by index.
 
 Three options:
 
-| Source                                | When to use                                                                |
-| ------------------------------------- | -------------------------------------------------------------------------- |
-| `polyhedron_create()`                 | Platonic solids (tetra/cube/octa/icosa), optionally extruded into prisms.  |
-| `tube_create()` / `rope_create()`     | Sweep a polyline into a smooth tube or grooved rope.                       |
-| `model_load(ASSET_FOO_MDL, flags)`    | Pre-authored mesh from `.obj` (auto-converted) or `.3ds` (manual convert). |
+| Source                             | When to use                                                                |
+| ---------------------------------- | -------------------------------------------------------------------------- |
+| `polyhedron_create()`              | Platonic solids (tetra/cube/octa/icosa), optionally extruded into prisms.  |
+| `tube_create()` / `rope_create()`  | Sweep a polyline into a smooth tube or grooved rope.                       |
+| `model_load(ASSET_FOO_MDL, flags)` | Pre-authored mesh from `.obj` (auto-converted) or `.3ds` (manual convert). |
 
 All three return a `Model *` with the same shape ([model.h](../src/scenes/utils/model.h)).
 
 For `model_load`, pass a flags combination so only the buffers you need are
 allocated:
 
-| Flag combo        | Loads                                | Use for             |
-| ----------------- | ------------------------------------ | ------------------- |
-| `MODEL_WIREFRAME` | positions + face_normals             | wireframe + cull    |
-| `MODEL_FLAT`      | positions + face_normals             | flat shading        |
-| `MODEL_GOURAUD`   | + vertex_normals                     | per-vertex lighting |
-| `MODEL_TEXTURED`  | positions + uvs + face_normals       | textured w/o lights |
-| `MODEL_ALL`       | everything                           | textured + Gouraud  |
+| Flag combo        | Loads                          | Use for             |
+| ----------------- | ------------------------------ | ------------------- |
+| `MODEL_WIREFRAME` | positions + face_normals       | wireframe + cull    |
+| `MODEL_FLAT`      | positions + face_normals       | flat shading        |
+| `MODEL_GOURAUD`   | + vertex_normals               | per-vertex lighting |
+| `MODEL_TEXTURED`  | positions + uvs + face_normals | textured w/o lights |
+| `MODEL_ALL`       | everything                     | textured + Gouraud  |
 
 `indices` is always loaded.
 
@@ -51,14 +51,14 @@ allocated:
 
 Five choices in [render3d.h](../src/scenes/utils/render3d.h):
 
-| Function                             | Per-pixel cost                    | When to use                                                |
-| ------------------------------------ | --------------------------------- | ---------------------------------------------------------- |
-| `draw_line()` (from `draw.h`)        | 1 store                           | Wireframe.                                                 |
-| `fill_triangle_flat`                 | 1 store + z-test                  | Flat colour per triangle. Cheapest fill.                   |
-| `fill_triangle_gouraud`              | 1 add + 1 store + z-test          | Smooth shading, no texture.                                |
-| `fill_triangle_textured_affine`      | 2 adds + 1 lookup + z-test        | Textured, UVs vary slowly *or* are sphere-mapped.          |
-| `fill_triangle_textured`             | + perspective divide every 16 px  | Textured, UVs vary fast (large near triangles).            |
-| `fill_triangle_textured_gouraud`     | textured + colormap lookup        | Textured + per-vertex lighting.                            |
+| Function                         | Per-pixel cost                   | When to use                                       |
+| -------------------------------- | -------------------------------- | ------------------------------------------------- |
+| `draw_line()` (from `draw.h`)    | 1 store                          | Wireframe.                                        |
+| `fill_triangle_flat`             | 1 store + z-test                 | Flat colour per triangle. Cheapest fill.          |
+| `fill_triangle_gouraud`          | 1 add + 1 store + z-test         | Smooth shading, no texture.                       |
+| `fill_triangle_textured_affine`  | 2 adds + 1 lookup + z-test       | Textured, UVs vary slowly _or_ are sphere-mapped. |
+| `fill_triangle_textured`         | + perspective divide every 16 px | Textured, UVs vary fast (large near triangles).   |
+| `fill_triangle_textured_gouraud` | textured + colormap lookup       | Textured + per-vertex lighting.                   |
 
 **Affine vs perspective-correct** is the most common decision. Affine UV
 interpolation is faster and exact for constant-UV inputs. The classic
@@ -74,12 +74,12 @@ introduces drift.
 Vertex normals decide whether neighbouring triangles share lighting/UV
 across their shared edge.
 
-| You want                  | Mesh source                                 | Flag                  |
-| ------------------------- | ------------------------------------------- | --------------------- |
-| Faceted (hard edges)      | `polyhedron_create(..., 0)`                 | flags = 0             |
-| Smooth (rounded)          | `polyhedron_create(..., POLYHEDRON_SMOOTH)` | `POLYHEDRON_SMOOTH`   |
-| Smooth tube/rope          | `tube_create(..., POLYHEDRON_SMOOTH)`       | `POLYHEDRON_SMOOTH`   |
-| .obj / .3ds               | exporter honours `s` smoothing groups       | (in source asset)     |
+| You want             | Mesh source                                 | Flag                |
+| -------------------- | ------------------------------------------- | ------------------- |
+| Faceted (hard edges) | `polyhedron_create(..., 0)`                 | flags = 0           |
+| Smooth (rounded)     | `polyhedron_create(..., POLYHEDRON_SMOOTH)` | `POLYHEDRON_SMOOTH` |
+| Smooth tube/rope     | `tube_create(..., POLYHEDRON_SMOOTH)`       | `POLYHEDRON_SMOOTH` |
+| .obj / .3ds          | exporter honours `s` smoothing groups       | (in source asset)   |
 
 Smooth mode for `polyhedron_create()` merges vertices by position and
 averages adjacent face normals. **Side effect**: per-face UVs collapse to
@@ -197,8 +197,8 @@ Key invariants:
 
 - The z passed to rasterizers is the **transformed view-space z** (Q8.8),
   not screen-space — they reconstruct 1/z internally.
-- Backface test (`backface3d`) wants the transformed face normal *and any
-  one transformed vertex* of the triangle. Use `v0`.
+- Backface test (`backface3d`) wants the transformed face normal _and any
+  one transformed vertex_ of the triangle. Use `v0`.
 - `visible[]` must be checked for all three vertices; a triangle straddling
   the near plane should be skipped (no near-plane clipping is done — the
   whole triangle is dropped).
@@ -220,7 +220,7 @@ sphere_map_uv(transformed_vnorms[i*3+0], transformed_vnorms[i*3+1],
 Use it when:
 
 - The model has smooth (averaged) vertex normals.
-- You don't care about the original UVs (sphere-map *replaces* them).
+- You don't care about the original UVs (sphere-map _replaces_ them).
 - You want a "shiny chrome" / environment look.
 
 Always pair with `fill_triangle_textured_affine` — sphere-map UVs are
@@ -250,12 +250,22 @@ static const Camera3D camera = {
 - **`proj_scale`**: focal length in pixels. The example scenes use
   180–220 for 320×200; lower → wider angle.
 - **`near_z`**: anything closer is rejected. Keep it small enough that
-  rotating geometry never *fully* enters the frustum behind it (otherwise
+  rotating geometry never _fully_ enters the frustum behind it (otherwise
   you'll see triangles vanish), but large enough that 1/z doesn't blow up.
   `FP_ONE >> 2` (= 0.25) is the standard.
 
 There is no far plane — z-buffer wraparound is the only constraint, and
 the iz reciprocal already handles it.
+
+For cinematic moves (zooming in, dollying, panning past geometry),
+spline `cam_z` and `proj_scale` against `ctx->ms` instead of holding
+them constant. `Spline` from [tween.h](../src/utils/tween.h) does
+Catmull-Rom through a list of keyframes — see
+[music-sync.md](music-sync.md#smoother-motion-across-many-keys-spline).
+The current camera model rotates the _world_ around the origin
+(controlled by `(angle_y, angle_x)` passed to `transform_points`), so
+splining `cam_z` and `proj_scale` covers orbit-and-zoom moves;
+free-flying camera positions are not supported at the moment.
 
 ---
 
@@ -313,7 +323,7 @@ Memory:
   texture jump per-triangle. Set `POLYHEDRON_SMOOTH` (or use a smoothed
   source `.obj`).
 - **Calling rasterizers when one vertex is behind the camera.** No clipping
-  happens — `project_points` will set `visible[i] = 0` and the loop *must*
+  happens — `project_points` will set `visible[i] = 0` and the loop _must_
   skip the triangle (`!visible[i0] || !visible[i1] || !visible[i2]`).
   Forgetting that check produces wraparound triangles flying across the
   screen.
@@ -325,16 +335,16 @@ Memory:
 
 ## Reference scenes
 
-| Scene                                                  | Demonstrates                                 |
-| ------------------------------------------------------ | -------------------------------------------- |
-| [polyhedra.c](../src/scenes/polyhedra.c)               | Wireframe, no z-buffer, gallery cycling      |
-| [model_wireframe.c](../src/scenes/model_wireframe.c)   | Wireframe with backface cull                 |
-| [model_flatshade.c](../src/scenes/model_flatshade.c)   | Flat shading + per-face Lambert              |
-| [model_gouraud.c](../src/scenes/model_gouraud.c)       | Per-vertex Gouraud                           |
-| [textured_cube.c](../src/scenes/textured_cube.c)       | Perspective-correct texture                  |
-| [shaded_cube.c](../src/scenes/shaded_cube.c)           | Textured + Gouraud via colormap              |
-| [spheremap.c](../src/scenes/spheremap.c)               | Sphere-mapped teapot rendered at half resolution |
-| [rope_knot.c](../src/scenes/rope_knot.c)               | Procedural rope along a knotted path         |
+| Scene                                                | Demonstrates                                     |
+| ---------------------------------------------------- | ------------------------------------------------ |
+| [polyhedra.c](../src/scenes/polyhedra.c)             | Wireframe, no z-buffer, gallery cycling          |
+| [model_wireframe.c](../src/scenes/model_wireframe.c) | Wireframe with backface cull                     |
+| [model_flatshade.c](../src/scenes/model_flatshade.c) | Flat shading + per-face Lambert                  |
+| [model_gouraud.c](../src/scenes/model_gouraud.c)     | Per-vertex Gouraud                               |
+| [textured_cube.c](../src/scenes/textured_cube.c)     | Perspective-correct texture                      |
+| [shaded_cube.c](../src/scenes/shaded_cube.c)         | Textured + Gouraud via colormap                  |
+| [spheremap.c](../src/scenes/spheremap.c)             | Sphere-mapped teapot rendered at half resolution |
+| [rope_knot.c](../src/scenes/rope_knot.c)             | Procedural rope along a knotted path             |
 
 For point-cloud and effect-driven 3D content (sparks, embers, magic
 dust) the particle system shares this pipeline's `Camera3D` and
