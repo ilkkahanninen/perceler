@@ -34,3 +34,37 @@ unsigned char fft_at(const FFTTrack *track, unsigned int frame)
     return 0;
   return track->samples[frame];
 }
+
+void onset_init(OnsetDetector *d, int floor, int cooldown_frames)
+{
+  d->floor = floor;
+  d->cooldown_frames = cooldown_frames;
+  d->prev = 0;
+  d->rising_peak = 0;
+  d->cooldown = 0;
+}
+
+int onset_step(OnsetDetector *d, int energy)
+{
+  int fired = 0;
+
+  if (d->cooldown > 0)
+    d->cooldown--;
+
+  if (energy > d->prev)
+  {
+    if (energy > d->rising_peak)
+      d->rising_peak = energy;
+  }
+  else if (energy < d->prev && d->rising_peak > 0)
+  {
+    if (d->rising_peak > d->floor && d->cooldown == 0)
+    {
+      fired = 1;
+      d->cooldown = d->cooldown_frames;
+    }
+    d->rising_peak = 0;
+  }
+  d->prev = energy;
+  return fired;
+}
