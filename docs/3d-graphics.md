@@ -227,7 +227,7 @@ Always pair with `fill_triangle_textured_affine` — sphere-map UVs are
 constant across each triangle, so the perspective-correct path would just
 introduce rounding drift.
 
-Reference scenes: [spheremap_orb.c](../src/scenes/spheremap_orb.c),
+Reference scenes: [spheremap.c](../src/scenes/spheremap.c),
 [rope_knot.c](../src/scenes/rope_knot.c).
 
 ---
@@ -333,5 +333,5 @@ Memory:
 | [model_gouraud.c](../src/scenes/model_gouraud.c)       | Per-vertex Gouraud                           |
 | [textured_cube.c](../src/scenes/textured_cube.c)       | Perspective-correct texture                  |
 | [shaded_cube.c](../src/scenes/shaded_cube.c)           | Textured + Gouraud via colormap              |
-| [spheremap_orb.c](../src/scenes/spheremap_orb.c)       | Sphere-mapped icosahedron                    |
+| [spheremap.c](../src/scenes/spheremap.c)               | Sphere-mapped teapot rendered at half resolution |
 | [rope_knot.c](../src/scenes/rope_knot.c)               | Procedural rope along a knotted path         |

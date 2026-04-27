@@ -245,6 +245,14 @@ write the upscaled image straight to VGA memory; the backbuffer route
 is the more common choice because it leaves room for full-resolution
 overlays before the final blit.
 
+For 3D scenes the same trick works, but the rasterizers in
+[render3d.c](../src/scenes/utils/render3d.c) hard-code `VGA_WIDTH` as
+the destination stride. Render with halved camera parameters into the
+upper-left 160×100 region of a `VGA_WIDTH * VGA_HALF_HEIGHT`-sized
+work buffer, then call `vga_blit_2x_strided(work_buf, VGA_WIDTH,
+ctx->backbuffer)` to read just that region. See
+[spheremap.c](../src/scenes/spheremap.c) for a worked example.
+
 ### Interleaved rendering
 
 For per-pixel work that's expensive but tolerates a bit of temporal
