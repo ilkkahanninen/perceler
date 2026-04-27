@@ -204,14 +204,15 @@ Snapshot it once, composite for the first N ms, done:
 #include "utils/dither.h"
 
 static unsigned char prev[VGA_SIZE];
-static int captured;
 
-static void init(const RenderContext *ctx) { (void)ctx; captured = 0; }
+static void init(const RenderContext *ctx)
+{
+    memcpy(prev, ctx->backbuffer, VGA_SIZE);
+}
 
 static void render(const RenderContext *ctx)
 {
     unsigned char *backbuffer = ctx->backbuffer;
-    if (!captured) { memcpy(prev, backbuffer, VGA_SIZE); captured = 1; }
 
     /* ... draw your scene into backbuffer ... */
 
