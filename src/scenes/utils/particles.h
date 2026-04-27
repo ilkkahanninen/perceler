@@ -101,4 +101,24 @@ void particles_draw(const ParticleSystem *ps,
 void particles_apply_attractor(ParticleSystem *ps,
                                int x, int y, int z, int strength);
 
+/* Bounce live particles off the infinite plane `n·p = d`, where the
+ * plane normal `(nx, ny, nz)` is a Q8.8 unit vector and `d` is a Q8.8
+ * world-space offset. Particles on the n-positive side of the plane
+ * are unaffected; particles that have crossed to the negative side
+ * have their velocity reflected and their position mirrored back out:
+ *
+ *     v' = v - (1 + r) * (v · n) * n
+ *     p' = p - (1 + r) * dist    * n     (dist = n·p - d, < 0)
+ *
+ * `restitution` is Q8.8: `FP_ONE` is a perfectly elastic bounce (no
+ * energy loss); `0` strips the normal component entirely, leaving
+ * the tangential — particles slide along the plane.
+ *
+ * Multiple planes compose by calling once per plane. Call after
+ * particles_update() so the reflection sees the post-integration
+ * position. */
+void particles_bounce_plane(ParticleSystem *ps,
+                            int nx, int ny, int nz, int d,
+                            int restitution);
+
 #endif

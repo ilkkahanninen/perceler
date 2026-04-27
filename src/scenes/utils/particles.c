@@ -205,6 +205,52 @@ void particles_apply_attractor(ParticleSystem *ps,
   }
 }
 
+void particles_bounce_plane(ParticleSystem *ps,
+                            int nx, int ny, int nz, int d,
+                            int restitution)
+{
+  int factor_scale = FP_ONE + restitution; /* (1 + e) in Q8.8 */
+  int i;
+
+  for (i = 0; i < ps->capacity; i++)
+  {
+    int dist, v_dot_n, factor;
+
+    if (ps->life[i] <= 0)
+      continue;
+
+    /* Signed distance to the plane: n · p - d. */
+    dist = FP_MUL(ps->x[i], nx) + FP_MUL(ps->y[i], ny) +
+           FP_MUL(ps->z[i], nz) - d;
+    if (dist >= 0)
+      continue; /* still on the n-positive side */
+
+    /* If the particle is already heading back toward the positive
+     * side, skip — most likely the previous frame's bounce hasn't
+     * yet integrated us off the plane. */
+    v_dot_n = FP_MUL(ps->vx[i], nx) + FP_MUL(ps->vy[i], ny) +
+              FP_MUL(ps->vz[i], nz);
+    if (v_dot_n >= 0)
+      continue;
+
+    /* Reflect velocity: subtract (1 + e) * (v · n) along n. */
+    factor = FP_MUL(factor_scale, v_dot_n);
+    ps->vx[i] -= FP_MUL(factor, nx);
+    ps->vy[i] -= FP_MUL(factor, ny);
+    ps->vz[i] -= FP_MUL(factor, nz);
+
+    /* Mirror position out of penetration by (1 + e) * dist along n.
+     * dist is negative, so this moves the particle in the +n
+     * direction by (1 + e) * |dist| — a perfectly elastic plane
+     * (e = 1) sends it as far above as it had crossed below; e = 0
+     * leaves it flush with the plane. */
+    factor = FP_MUL(factor_scale, dist);
+    ps->x[i] -= FP_MUL(factor, nx);
+    ps->y[i] -= FP_MUL(factor, ny);
+    ps->z[i] -= FP_MUL(factor, nz);
+  }
+}
+
 void particles_draw(const ParticleSystem *ps,
                     const Camera3D *cam,
                     unsigned char angle_y, unsigned char angle_x,
