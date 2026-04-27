@@ -11,6 +11,7 @@
 #include "capture.h"
 #include "keyboard.h"
 #include "utils/mem.h"
+#include "../utils/timing.h"
 #include "timer.h"
 #include "vga.h"
 
@@ -128,8 +129,8 @@ static void run_timeline_realtime(const TimelineEntry *timeline,
       ctx.backbuffer = backbuffer;
       ctx.ms = elapsed;
       ctx.timeline_ms = current_scene->music_offset_ms + elapsed;
-      ctx.frame = (unsigned int)((ctx.ms * 61) >> 10);
-      ctx.timeline_frame = (unsigned int)((ctx.timeline_ms * 61) >> 10);
+      ctx.frame = (unsigned int)MS_TO_FRAME(ctx.ms);
+      ctx.timeline_frame = (unsigned int)MS_TO_FRAME(ctx.timeline_ms);
 
       if (need_init)
       {
@@ -233,8 +234,8 @@ static void run_timeline_offline(const TimelineEntry *timeline,
       ctx.backbuffer = backbuffer;
       ctx.ms = elapsed;
       ctx.timeline_ms = virtual_ms;
-      ctx.frame = (unsigned int)((elapsed * 61) >> 10);
-      ctx.timeline_frame = (unsigned int)((virtual_ms * 61) >> 10);
+      ctx.frame = (unsigned int)MS_TO_FRAME(elapsed);
+      ctx.timeline_frame = (unsigned int)MS_TO_FRAME(virtual_ms);
 
       if (need_init)
       {
